@@ -1,0 +1,14 @@
+{
+  "recipe_version": "1.0",
+  "title": "ICA artifact recovery · planted blink",
+  "seed": 97,
+  "duration_s": 12,
+  "sampling_rate_hz": 250,
+  "blink_amplitude_uv": 90,
+  "sensor_noise_uv": 0.25,
+  "reference": "average",
+  "fit_highpass_hz": 1,
+  "fit_lowpass_hz": 100,
+  "algorithm": "infomax",
+  "component_count": 4
+}

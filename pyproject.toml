@@ -1,0 +1,54 @@
+[project]
+name = "neurobridge-eeg-lab"
+version = "0.1.0"
+description = "Truth-first local EEG simulation and learning workbench"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116,<1",
+  "mne>=1.10,<2",
+  "numpy>=2.2,<3",
+  "pydantic>=2.11,<3",
+  "scipy>=1.15,<2",
+  "scikit-learn>=1.8,<2",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28,<1",
+  "pytest>=8.4,<10",
+  "pytest-cov>=6.2,<8",
+  "ruff>=0.12,<1",
+]
+ica = [
+  "mne-icalabel>=0.9,<1",
+  "onnxruntime>=1.23,<2",
+]
+
+[project.scripts]
+neurobridge-api = "neurobridge_api.main:run"
+neurobridge-recipe = "neurobridge.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "packages/neurobridge_core/src/neurobridge",
+  "apps/api/neurobridge_api",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["packages/neurobridge_core/src", "apps/api"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["neurobridge_eeg_framework.py", "neurobridge_eeg_pipeline_v2_1.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

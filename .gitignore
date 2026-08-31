@@ -1,0 +1,49 @@
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+.venv-mne/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+
+# Python test and coverage files
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Web dependencies and Vite cache
+node_modules/
+.vite/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Local environment and secret files
+.env
+.env.*
+
+# Build and distribution files
+build/
+dist/
+*.egg-info/
+
+# NeuroBridge-EEG development and backup files
+Backups/
+DEVELOPMENT_ARCHIVE/

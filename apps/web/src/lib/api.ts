@@ -1,0 +1,61 @@
+import type {
+  ExperimentRecipe,
+  ExperimentResult,
+  IcaApplyResult,
+  IcaFitResult,
+  IcaRecipe,
+} from '../types'
+
+const apiBase = import.meta.env.VITE_API_URL ?? '/api'
+
+export async function checkHealth(signal?: AbortSignal): Promise<boolean> {
+  const response = await fetch(`${apiBase}/health`, { signal })
+  if (!response.ok) throw new Error('The local analysis service is not ready.')
+  return true
+}
+
+export async function runRecipe(recipe: ExperimentRecipe): Promise<ExperimentResult> {
+  const response = await fetch(`${apiBase}/runs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(recipe),
+  })
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { detail?: unknown } | null
+    const detail = typeof payload?.detail === 'string' ? payload.detail : 'Check the frequency settings and try again.'
+    throw new Error(detail)
+  }
+  return response.json() as Promise<ExperimentResult>
+}
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${apiBase}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { detail?: unknown } | null
+    const message = typeof payload?.detail === 'string' ? payload.detail : 'The scientific pipeline stopped safely.'
+    throw new Error(message)
+  }
+  return response.json() as Promise<T>
+}
+
+export function fitIca(recipe: IcaRecipe): Promise<IcaFitResult> {
+  return postJson<IcaFitResult>('/ica/fit', recipe)
+}
+
+export function applyIca(
+  recipe: IcaRecipe,
+  fit: IcaFitResult,
+  excludedComponents: number[],
+): Promise<IcaApplyResult> {
+  return postJson<IcaApplyResult>('/ica/apply', {
+    recipe,
+    excluded_components: excludedComponents,
+    compatibility_fingerprint: fit.compatibility.fingerprint,
+    target_reference: recipe.reference,
+    target_channel_names: fit.compatibility.channel_names,
+  })
+}

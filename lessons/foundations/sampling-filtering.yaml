@@ -1,0 +1,11 @@
+id: foundations.sampling-filtering
+version: 1.0.0
+title: What survives the sensor?
+objective: Predict how sampling and a 1–40 Hz filter change a known 2/10/60 Hz mixture.
+recipe: fixtures/recipes/sampling-filtering.json
+controls:
+  unlocked: [sampling_rate_hz, noise_uv, highpass_hz, lowpass_hz, notch_hz, reference]
+prediction_prompt: Which planted peaks will remain after filtering, and what happens if sampling drops to 100 Hz?
+reveal_policy: deliberate
+reflection: Explain one change using Nyquist frequency or filter attenuation.
+engine_version: 0.1.0

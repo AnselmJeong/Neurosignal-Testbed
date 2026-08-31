@@ -1,0 +1,17 @@
+id: preprocessing.ica-blink
+version: 1.0.0
+title: Which component is the blink?
+objective: Fit ICA on a rank-aware high-pass copy and remove the planted blink without erasing neural signal.
+recipe: fixtures/recipes/ica-blink.json
+controls:
+  unlocked: [blink_amplitude_uv, sensor_noise_uv, reference, algorithm, component_count]
+prediction_prompt: Which component is ocular, and what evidence supports your choice?
+reveal_policy: deliberate
+checkpoints:
+  - inspect_rank_before_component_count
+  - compare_trace_spectrum_topography
+  - manually_select_exclusions
+  - verify_apply_compatibility
+  - compare_attenuation_and_distortion
+reflection: Explain why the ICA fit copy and the target copy may differ in high-pass filtering but not in channel order or reference.
+engine_version: 0.1.0
