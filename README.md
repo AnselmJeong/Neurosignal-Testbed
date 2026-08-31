@@ -32,8 +32,10 @@ npm install
 npm run dev
 ```
 
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). The API documentation is available at
-[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+Open [http://127.0.0.1:5174](http://127.0.0.1:5174). The API documentation is available at
+[http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs). These ports are reserved for
+NeuroBridge development so it does not collide with ScholarPen on ports 5173 and 8000. The web
+server uses a strict port and exits instead of silently moving to another port when 5174 is busy.
 
 ### Verify
 

@@ -29,7 +29,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type"],
@@ -125,4 +125,4 @@ def apply_ica(request: IcaApplyRequest) -> IcaApplyResult:
 
 
 def run() -> None:
-    uvicorn.run("neurobridge_api.main:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("neurobridge_api.main:app", host="127.0.0.1", port=8001, reload=False)

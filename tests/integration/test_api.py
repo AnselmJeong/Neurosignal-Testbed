@@ -10,6 +10,19 @@ def test_health_and_capabilities() -> None:
     assert payload["modules"][0]["status"] == "available"
 
 
+def test_neurobridge_web_origin_is_allowed() -> None:
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "http://127.0.0.1:5174",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5174"
+
+
 def test_run_round_trip() -> None:
     response = client.post("/runs", json={})
     assert response.status_code == 200
