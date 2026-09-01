@@ -1,0 +1,20 @@
+{
+  "recipe_version": "1.0",
+  "title": "Connectivity truth challenge · reference sensitivity",
+  "seed": 314,
+  "sampling_rate_hz": 200,
+  "epoch_count": 24,
+  "epoch_duration_s": 2,
+  "alpha_frequency_hz": 10,
+  "phase_lag_deg": 60,
+  "coupling_strength": 0.78,
+  "noise_sd": 0.55,
+  "volume_conduction": 0.72,
+  "reference": "none",
+  "analysis_space": "sensor",
+  "metric": "coh",
+  "spectral_mode": "multitaper",
+  "band_low_hz": 8,
+  "band_high_hz": 12,
+  "surrogate_count": 48
+}

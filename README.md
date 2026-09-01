@@ -1,8 +1,8 @@
 # NeuroBridge-EEG
 
-## NeuroBridge EEG Lab — Phase 1–2 web vertical slices
+## NeuroBridge EEG Lab — Phase 1–4 web vertical slices
 
-The repository includes the first two working slices of the product described in
+The repository includes the first four working slices of the product described in
 [`PRD.md`](PRD.md) and [`implementation_plan.md`](implementation_plan.md): a local-first,
 truth-first sampling/filtering lesson and a rank-aware ICA artifact-recovery lesson with a
 separately testable Python scientific core, FastAPI service, and React/TypeScript workspace.
@@ -18,6 +18,22 @@ and keeps ICLabel strictly advisory. The learner must select exclusions manually
 checks channel/reference compatibility and reports artifact attenuation plus neural distortion.
 The pinned default fixture recovers the blink above 0.95 source correlation while retaining more
 than 80% of the neural control signal.
+
+The connectivity challenge plants one lagged alpha-band edge in a four-node latent graph, projects
+the sources into eight mixed scalp sensors, and estimates Pearson correlation, coherence, imaginary
+coherence, PLV, PPC, PLI, or wPLI. Spectral estimators use MNE-Connectivity; Welch and multitaper
+PSDs are shown beside a linear-input specparam
+fit. Every edge is evaluated against the 95th percentile of epoch-shuffled maximum-edge surrogates;
+the UI coordinates matrix, scalp, circle, spectrum, and null-distribution views while keeping
+functional connectivity distinct from causality. Volume-conduction and reference-sensitivity lesson
+fixtures preserve the same latent graph for direct comparison.
+
+The source-modeling lab uses an explicitly illustrative 14-channel standard 10–20 spherical
+volume template. It plants four ROI-proxy time courses, projects them with MNE's EEG forward
+solution, reconstructs them with a locked minimum-norm inverse, and exposes reconstructed ROI
+traces, forward lead fields, location error, and the MNE source-resolution cross-talk matrix.
+The lesson labels this geometry as non-individualized throughout: source recovery is benchmarked
+against planted simulation truth, and leakage is a required interpretation checkpoint.
 
 ### Run the app locally
 
@@ -42,7 +58,7 @@ server uses a strict port and exits instead of silently moving to another port w
 ```bash
 uv run pytest
 uv run ruff check .
-cd apps/web && npm run build
+cd apps/web && npm test && npm run typecheck && npm run build
 ```
 
 The web client contains no Electrobun or Tauri imports. Desktop packaging remains deferred until

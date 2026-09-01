@@ -12,6 +12,8 @@ dependencies = [
   "scipy>=1.15,<2",
   "scikit-learn>=1.8,<2",
   "uvicorn[standard]>=0.35,<1",
+  "mne-connectivity>=0.8,<0.9",
+  "specparam>=2.0.0rc7,<2.1",
 ]
 
 [project.optional-dependencies]

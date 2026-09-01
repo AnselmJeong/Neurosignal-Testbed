@@ -1,0 +1,17 @@
+id: source-modeling.template-roi
+version: 1.0.0
+title: How much of an ROI is really there?
+objective: Forward-project known template ROI activity, reconstruct it with MNE, and inspect source-resolution leakage before revealing truth.
+recipe: fixtures/recipes/source-template-roi.json
+controls:
+  unlocked: [phase_lag_deg, source_amplitude_nam, sensor_noise_uv]
+prediction_prompt: Which reconstructed ROI will best match the planted alpha waveform, and where could leakage make a false ROI claim plausible?
+reveal_policy: deliberate
+checkpoints:
+  - inspect_forward_sensor_traces
+  - inspect_reconstructed_roi_time_courses
+  - compare_forward_lead_fields
+  - inspect_source_resolution_cross_talk
+  - reveal_template_vertex_truth
+reflection: Explain why a low location error in this template simulation does not validate an individualized source-localization result.
+engine_version: 0.1.0

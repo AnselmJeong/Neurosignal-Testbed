@@ -1,0 +1,17 @@
+id: connectivity.volume-conduction
+version: 1.0.0
+title: When does a sensor edge lie?
+objective: Compare zero-lag and lag-sensitive sensor estimates with the same planted latent graph.
+recipe: fixtures/recipes/connectivity-volume-conduction.json
+controls:
+  unlocked: [metric, analysis_space, phase_lag_deg, coupling_strength, volume_conduction, epoch_count]
+prediction_prompt: Will a one-edge latent graph produce exactly one edge after broad sensor mixing?
+reveal_policy: deliberate
+checkpoints:
+  - compare_welch_multitaper_and_specparam
+  - inspect_raw_and_thresholded_sensor_matrix
+  - inspect_scalp_and_circle_networks
+  - compare_coherence_with_lag_sensitive_metric
+  - reveal_one_edge_latent_truth
+reflection: Explain why a sensor-space edge is neither a source edge nor evidence of causality.
+engine_version: 0.1.0

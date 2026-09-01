@@ -1,0 +1,13 @@
+{
+  "recipe_version": "1.0",
+  "title": "Source modeling · template ROI benchmark",
+  "seed": 2718,
+  "sampling_rate_hz": 100,
+  "duration_s": 4.0,
+  "alpha_frequency_hz": 10.0,
+  "phase_lag_deg": 55.0,
+  "source_amplitude_nam": 20.0,
+  "sensor_noise_uv": 0.08,
+  "inverse_method": "MNE",
+  "montage": "standard_1020_14"
+}

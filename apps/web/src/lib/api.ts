@@ -1,15 +1,19 @@
 import type {
+  ConnectivityRecipe,
+  ConnectivityResult,
   ExperimentRecipe,
   ExperimentResult,
   IcaApplyResult,
   IcaFitResult,
   IcaRecipe,
+  SourceModelRecipe,
+  SourceModelResult,
 } from '../types'
 
 const apiBase = import.meta.env.VITE_API_URL ?? '/api'
 
 export async function checkHealth(signal?: AbortSignal): Promise<boolean> {
-  const response = await fetch(`${apiBase}/health`, { signal })
+  const response = await fetch(`${apiBase}/health`, signal ? { signal } : {})
   if (!response.ok) throw new Error('The local analysis service is not ready.')
   return true
 }
@@ -58,4 +62,12 @@ export function applyIca(
     target_reference: recipe.reference,
     target_channel_names: fit.compatibility.channel_names,
   })
+}
+
+export function runConnectivity(recipe: ConnectivityRecipe): Promise<ConnectivityResult> {
+  return postJson<ConnectivityResult>('/connectivity/runs', recipe)
+}
+
+export function runSourceModel(recipe: SourceModelRecipe): Promise<SourceModelResult> {
+  return postJson<SourceModelResult>('/source-modeling/runs', recipe)
 }

@@ -220,3 +220,183 @@ class IcaApplyResult(ContractModel):
     neural_retention_pct: float
     compatibility_verified: bool
     warnings: list[WarningMessage]
+
+
+class ConnectivityRecipe(ContractModel):
+    recipe_version: Literal["1.0"] = "1.0"
+    title: str = Field(default="Connectivity truth challenge · alpha network", min_length=1)
+    seed: int = Field(default=314, ge=0, le=2**31 - 1)
+    sampling_rate_hz: int = Field(default=200, ge=100, le=1000)
+    epoch_count: int = Field(default=24, ge=8, le=80)
+    epoch_duration_s: float = Field(default=2.0, ge=1.0, le=8.0)
+    alpha_frequency_hz: float = Field(default=10.0, ge=5.0, le=30.0)
+    phase_lag_deg: float = Field(default=60.0, ge=0, le=180)
+    coupling_strength: float = Field(default=0.78, ge=0, le=1)
+    noise_sd: float = Field(default=0.55, ge=0.05, le=3)
+    volume_conduction: float = Field(default=0.72, ge=0, le=1)
+    reference: Literal["average", "none"] = "average"
+    analysis_space: Literal["sensor", "latent"] = "sensor"
+    metric: Literal["pearson", "coh", "imcoh", "plv", "ppc", "pli", "wpli"] = "coh"
+    spectral_mode: Literal["multitaper", "fourier"] = "multitaper"
+    band_low_hz: float = Field(default=8.0, ge=1.0, le=80)
+    band_high_hz: float = Field(default=12.0, ge=2.0, le=100)
+    surrogate_count: int = Field(default=48, ge=20, le=200)
+
+    @model_validator(mode="after")
+    def valid_connectivity_recipe(self) -> ConnectivityRecipe:
+        nyquist = self.sampling_rate_hz / 2
+        if self.band_low_hz >= self.band_high_hz:
+            raise ValueError("connectivity band low edge must be below its high edge")
+        if self.band_high_hz >= nyquist:
+            raise ValueError("connectivity band must stay below Nyquist")
+        if not self.band_low_hz <= self.alpha_frequency_hz <= self.band_high_hz:
+            raise ValueError("planted alpha frequency must fall inside the analysis band")
+        return self
+
+
+class SpectralParameterization(ContractModel):
+    backend: Literal["specparam"]
+    fit_low_hz: float
+    fit_high_hz: float
+    offset: float
+    exponent: float
+    peak_frequency_hz: float | None
+    peak_power: float | None
+    peak_bandwidth_hz: float | None
+    r_squared: float
+    mean_absolute_error: float
+    aperiodic_power: list[float]
+    modeled_power: list[float]
+
+
+class SpectrumComparison(ContractModel):
+    frequency_hz: list[float]
+    welch_power: list[float]
+    multitaper_power: list[float]
+    unit: str = "power/Hz"
+    frequency_resolution_hz: float
+    parameterization: SpectralParameterization
+
+
+class ConnectivityMatrix(ContractModel):
+    node_names: list[str]
+    values: list[list[float]]
+    space: Literal["sensor", "latent", "truth"]
+    metric: str
+    band_hz: tuple[float, float]
+
+
+class ConnectivityEdge(ContractModel):
+    source: str
+    target: str
+    weight: float
+    detected: bool
+    is_true: bool | None
+
+
+class ConnectivityScores(ContractModel):
+    threshold: float
+    true_positive: int
+    false_positive: int
+    false_negative: int
+    precision: float
+    recall: float
+    strongest_edge_correct: bool
+    weighted_truth_correlation: float
+
+
+class ConnectivityResult(ContractModel):
+    run_id: str
+    state: Literal["completed", "failed"]
+    recipe: ConnectivityRecipe
+    warnings: list[WarningMessage]
+    spectrum: SpectrumComparison
+    latent: ConnectivityMatrix
+    sensor: ConnectivityMatrix
+    selected: ConnectivityMatrix
+    truth: ConnectivityMatrix
+    latent_edges: list[ConnectivityEdge]
+    sensor_edges: list[ConnectivityEdge]
+    thresholded_edges: list[ConnectivityEdge]
+    surrogate_values: list[float]
+    latent_surrogate_values: list[float]
+    sensor_surrogate_values: list[float]
+    selected_threshold: float
+    latent_threshold: float
+    sensor_threshold: float
+    surrogate_percentile: float = 95.0
+    scores: ConnectivityScores
+    mixing_matrix: list[list[float]]
+    sensor_positions: list[tuple[float, float]]
+    estimator_backend: Literal["mne-connectivity", "numpy"]
+    estimator_family: Literal["functional", "lag-sensitive"]
+    n_epochs_used: int
+    provenance: Provenance
+
+
+class SourceModelRecipe(ContractModel):
+    """Constrained educational source-modeling recipe.
+
+    This intentionally describes a small spherical template, rather than an
+    individual's anatomy.  It keeps the forward/inverse lesson reproducible
+    without claiming an anatomical localization result.
+    """
+
+    recipe_version: Literal["1.0"] = "1.0"
+    title: str = Field(default="Source modeling · template ROI benchmark", min_length=1)
+    seed: int = Field(default=2718, ge=0, le=2**31 - 1)
+    sampling_rate_hz: int = Field(default=100, ge=80, le=250)
+    duration_s: float = Field(default=4.0, ge=2.0, le=10.0)
+    alpha_frequency_hz: float = Field(default=10.0, ge=5.0, le=50.0)
+    phase_lag_deg: float = Field(default=55.0, ge=0, le=180)
+    source_amplitude_nam: float = Field(default=20.0, ge=2.0, le=80.0)
+    sensor_noise_uv: float = Field(default=0.08, ge=0, le=5.0)
+    inverse_method: Literal["MNE"] = "MNE"
+    montage: Literal["standard_1020_14"] = "standard_1020_14"
+
+    @model_validator(mode="after")
+    def valid_source_model_recipe(self) -> SourceModelRecipe:
+        if self.alpha_frequency_hz >= self.sampling_rate_hz / 2:
+            raise ValueError("planted alpha frequency must stay below Nyquist")
+        return self
+
+
+class SourceRoi(ContractModel):
+    id: str
+    label: str
+    position_mm: tuple[float, float, float]
+
+
+class SourceTopography(ContractModel):
+    roi_id: str
+    label: str
+    values: list[float]
+
+
+class SourceReconstructionScores(ContractModel):
+    mean_roi_correlation: float
+    roi_correlations: dict[str, float]
+    mean_location_error_mm: float
+    max_location_error_mm: float
+    location_error_mm: dict[str, float]
+    max_roi_cross_talk: float
+    leakage_matrix: list[list[float]]
+    benchmark_passed: bool
+
+
+class SourceModelResult(ContractModel):
+    run_id: str
+    state: Literal["completed", "failed"]
+    recipe: SourceModelRecipe
+    warnings: list[WarningMessage]
+    template_description: str
+    forward_method: str
+    inverse_method: str
+    rois: list[SourceRoi]
+    sensor_trace: SeriesData
+    latent_roi_time_courses: SeriesData
+    reconstructed_roi_time_courses: SeriesData
+    sensor_topographies: list[SourceTopography]
+    sensor_positions: list[tuple[float, float]]
+    scores: SourceReconstructionScores
+    provenance: Provenance

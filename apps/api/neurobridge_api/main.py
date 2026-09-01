@@ -4,19 +4,25 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from neurobridge import __version__
+from neurobridge.connectivity import run_connectivity_challenge
 from neurobridge.contracts.models import (
+    ConnectivityRecipe,
+    ConnectivityResult,
     ExperimentRecipe,
     ExperimentResult,
     IcaApplyRequest,
     IcaApplyResult,
     IcaFitResult,
     IcaRecipe,
+    SourceModelRecipe,
+    SourceModelResult,
     WarningMessage,
 )
 from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench
 from neurobridge.module_registry import capability_manifest
 from neurobridge.preprocessing import validate_recipe
 from neurobridge.service import run_experiment
+from neurobridge.source_modeling import run_source_model_benchmark
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -82,6 +88,39 @@ def lessons() -> list[dict[str, object]]:
             "steps": ["Inspect", "Fit", "Label", "Select", "Apply", "Score"],
             "estimated_minutes": 12,
         },
+        {
+            "id": "connectivity.volume-conduction",
+            "version": "1.0.0",
+            "title": "When does a sensor edge lie?",
+            "objective": (
+                "Compare latent and sensor networks, threshold against epoch-shuffled "
+                "surrogates, and explain volume-conduction and reference effects."
+            ),
+            "steps": ["Predict", "Estimate", "Threshold", "Compare", "Reveal", "Defend"],
+            "estimated_minutes": 15,
+        },
+        {
+            "id": "connectivity.reference-sensitivity",
+            "version": "1.0.0",
+            "title": "Same sources, different network?",
+            "objective": (
+                "Hold the latent graph fixed while switching sensor reference, then compare "
+                "which sensor edges cross the same surrogate threshold."
+            ),
+            "steps": ["Predict", "Estimate", "Switch", "Compare", "Reveal", "Explain"],
+            "estimated_minutes": 10,
+        },
+        {
+            "id": "source-modeling.template-roi",
+            "version": "1.0.0",
+            "title": "How much of an ROI is really there?",
+            "objective": (
+                "Forward-project known template ROI activity, reconstruct it with MNE, "
+                "and inspect source-resolution leakage before revealing latent truth."
+            ),
+            "steps": ["Predict", "Project", "Reconstruct", "Extract", "Compare", "Reveal"],
+            "estimated_minutes": 15,
+        },
     ]
 
 
@@ -122,6 +161,16 @@ def apply_ica(request: IcaApplyRequest) -> IcaApplyResult:
         return apply_ica_exclusions(request)
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/connectivity/runs", response_model=ConnectivityResult)
+def create_connectivity_run(recipe: ConnectivityRecipe) -> ConnectivityResult:
+    return run_connectivity_challenge(recipe)
+
+
+@app.post("/source-modeling/runs", response_model=SourceModelResult)
+def create_source_model_run(recipe: SourceModelRecipe) -> SourceModelResult:
+    return run_source_model_benchmark(recipe)
 
 
 def run() -> None:

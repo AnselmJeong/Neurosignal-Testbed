@@ -44,9 +44,12 @@ function buildPath(
   let path = ''
   const count = Math.min(x.length, y.length)
   for (let index = 0; index < count; index += 1) {
-    const value = logY ? Math.log10(Math.max(y[index], 1e-12)) : y[index]
+    const xValue = x[index]
+    const yValue = y[index]
+    if (xValue === undefined || yValue === undefined) continue
+    const value = logY ? Math.log10(Math.max(yValue, 1e-12)) : yValue
     if (!Number.isFinite(value)) continue
-    path += `${path ? 'L' : 'M'}${sx(x[index]).toFixed(2)},${sy(value).toFixed(2)}`
+    path += `${path ? 'L' : 'M'}${sx(xValue).toFixed(2)},${sy(value).toFixed(2)}`
   }
   return path
 }
