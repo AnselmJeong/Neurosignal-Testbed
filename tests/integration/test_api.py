@@ -1,3 +1,7 @@
+import hashlib
+
+import mne
+import numpy as np
 from fastapi.testclient import TestClient
 from neurobridge_api.main import app
 
@@ -98,3 +102,29 @@ def test_source_model_template_benchmark_contract() -> None:
     assert result["scores"]["max_location_error_mm"] <= 60
     assert len(result["rois"]) == 4
     assert any(item["code"] == "source_leakage_caveat" for item in result["warnings"])
+
+
+def test_real_data_api_import_inspect_and_report(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("NEUROBRIDGE_PROJECTS_DIR", str(tmp_path / "projects"))
+    source = tmp_path / "api_source_raw.fif"
+    raw = mne.io.RawArray(
+        np.random.default_rng(8).normal(0, 1e-6, size=(4, 500)),
+        mne.create_info(["F3", "F4", "C3", "C4"], 100, "eeg"),
+        verbose=False,
+    )
+    raw.save(source, overwrite=True, verbose=False)
+    before_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+    payload = {"source_path": str(source), "project_name": "API local recording"}
+
+    inspection = client.post("/real-data/inspect", json=payload)
+    assert inspection.status_code == 200
+    assert inspection.json()["source_name"] == "api_source_raw.fif"
+    imported = client.post("/real-data/imports", json=payload)
+    assert imported.status_code == 200
+    project_id = imported.json()["project"]["project_id"]
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == before_hash
+    report = client.post("/reports", params={"project_id": project_id})
+    assert report.status_code == 200
+    downloaded = client.get(report.json()["download_path"])
+    assert downloaded.status_code == 200
+    assert b"truth" not in downloaded.content.lower()

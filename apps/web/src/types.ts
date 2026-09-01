@@ -380,3 +380,73 @@ export const defaultSourceModelRecipe = {
   inverse_method: 'MNE',
   montage: 'standard_1020_14',
 } satisfies SourceModelRecipe
+
+export interface LocalImportRequest {
+  source_path: string
+  project_name: string
+}
+
+export interface RecordingInspection {
+  source_name: string
+  format: 'fif' | 'edf' | 'bdf' | 'brainvision' | 'eeglab'
+  source_sha256: string
+  channel_count: number
+  eeg_channel_count: number
+  channel_names: string[]
+  channel_types: Record<string, number>
+  sampling_rate_hz: number
+  duration_s: number
+  highpass_hz: number | null
+  lowpass_hz: number | null
+  annotation_count: number
+  digitization_point_count: number
+  montage_present: boolean
+  warnings: WarningMessage[]
+}
+
+export interface RealDataProject {
+  project_id: string
+  schema_version: number
+  migration_status: 'current' | 'migrated' | 'recovered'
+  project_name: string
+  source_name: string
+  source_format: 'fif' | 'edf' | 'bdf' | 'brainvision' | 'eeglab'
+  working_copy_name: string
+  imported_at: string
+}
+
+export interface RealDataImportResult {
+  project: RealDataProject
+  inspection: RecordingInspection
+  qc: {
+    channel_count: number
+    eeg_channel_count: number
+    duration_s: number
+    sampling_rate_hz: number
+    bad_channels: string[]
+    flat_channels: string[]
+    annotation_count: number
+    alpha_relative_power: number | null
+    warnings: WarningMessage[]
+  }
+  report_available: boolean
+}
+
+export interface EegbciLessonStatus {
+  state: 'cached' | 'not_cached'
+  cache_directory: string
+  available_runs: number[]
+  message: string
+}
+
+export interface EegbciImportRequest {
+  run: 1 | 2
+  project_name: string
+}
+
+export interface ReportExportResult {
+  project_id: string
+  report_name: string
+  download_path: string
+  generated_at: string
+}

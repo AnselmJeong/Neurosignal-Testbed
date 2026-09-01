@@ -1,0 +1,17 @@
+id: real-data.eegbci-eyes
+version: 1.0.0
+title: From local recording to QC report
+objective: Inspect a cached EEGBCI eyes-open or eyes-closed recording without changing it, create a FIF working copy, and export a descriptive QC record.
+cache_requirement: EEGBCI subject 1 R01 and R02 acquired once and available locally
+controls:
+  unlocked: [local_path, project_name, cached_eegbci_run, export_report]
+prediction_prompt: Which metadata, montage evidence, and QC observations must be checked before comparing an eyes-open and eyes-closed run?
+reveal_policy: none
+checkpoints:
+  - inspect_local_file_without_writing
+  - verify_channels_units_annotations_and_digitization
+  - create_separate_fif_working_copy
+  - review_descriptive_qc
+  - export_local_html_record
+reflection: The Berger effect is an expected educational pipeline check, not a guarantee for every recording or an individual-level conclusion.
+engine_version: 0.1.0

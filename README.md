@@ -1,8 +1,8 @@
 # NeuroBridge-EEG
 
-## NeuroBridge EEG Lab — Phase 1–4 web vertical slices
+## NeuroBridge EEG Lab — Phase 1–5 web vertical slices
 
-The repository includes the first four working slices of the product described in
+The repository includes the first five working slices of the product described in
 [`PRD.md`](PRD.md) and [`implementation_plan.md`](implementation_plan.md): a local-first,
 truth-first sampling/filtering lesson and a rank-aware ICA artifact-recovery lesson with a
 separately testable Python scientific core, FastAPI service, and React/TypeScript workspace.
@@ -34,6 +34,12 @@ solution, reconstructs them with a locked minimum-norm inverse, and exposes reco
 traces, forward lead fields, location error, and the MNE source-resolution cross-talk matrix.
 The lesson labels this geometry as non-individualized throughout: source recovery is benchmarked
 against planted simulation truth, and leakage is a required interpretation checkpoint.
+
+The real-data lab opens FIF, EDF/BDF, BrainVision, or EEGLAB recordings read-only, surfaces
+format/channel/filter/annotation/digitization evidence, and writes only a separate local FIF
+working copy. It provides descriptive QC, project-manifest recovery/migration, a cached EEGBCI
+eyes-open/eyes-closed lesson path, and an `mne.Report` HTML export that records provenance and
+caveats without simulation-score language.
 
 ### Run the app locally
 

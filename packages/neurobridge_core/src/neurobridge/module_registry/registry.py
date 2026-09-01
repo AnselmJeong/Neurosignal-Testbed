@@ -61,6 +61,20 @@ def capability_manifest() -> CapabilityManifest:
                 ],
                 prerequisites=["mne", "spherical educational template only"],
             ),
+            AnalysisModuleManifest(
+                id="real-data.import-report",
+                version="1.0.0",
+                label="Local EEG import, QC, and report",
+                status="available",
+                input_kinds=["FIF", "EDF", "BDF", "BrainVision", "EEGLAB"],
+                output_kinds=[
+                    "recording_inspection",
+                    "fif_working_copy",
+                    "qc_summary",
+                    "html_report",
+                ],
+                prerequisites=["local file selected by user", "no source mutation"],
+            ),
         ],
         datasets=["deterministic-simulation"],
         renderer_support=[
@@ -77,5 +91,8 @@ def capability_manifest() -> CapabilityManifest:
             "source_topographies",
             "roi_time_courses",
             "source_resolution_leakage",
+            "recording_inspection",
+            "qc_summary",
+            "html_report",
         ],
     )

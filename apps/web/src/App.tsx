@@ -30,6 +30,7 @@ import { LineChart } from './components/Charts'
 import { ConnectivityWorkbench } from './components/ConnectivityWorkbench'
 import { IcaWorkbench } from './components/IcaWorkbench'
 import { MixingMatrix } from './components/MixingMatrix'
+import { RealDataWorkbench } from './components/RealDataWorkbench'
 import { SourceModelWorkbench } from './components/SourceModelWorkbench'
 import { checkHealth, runRecipe } from './lib/api'
 import { defaultRecipe, type ExperimentRecipe, type ExperimentResult, type RequestState } from './types'
@@ -49,7 +50,7 @@ type View = (typeof VIEWS)[number]
 const cloneRecipe = (recipe: ExperimentRecipe): ExperimentRecipe => structuredClone(recipe)
 
 function App() {
-  const [activeLab, setActiveLab] = useState<'filter' | 'ica' | 'connectivity' | 'source'>('filter')
+  const [activeLab, setActiveLab] = useState<'filter' | 'ica' | 'connectivity' | 'source' | 'real'>('filter')
   const [recipe, setRecipe] = useState<ExperimentRecipe>(() => cloneRecipe(defaultRecipe))
   const [past, setPast] = useState<ExperimentRecipe[]>([])
   const [future, setFuture] = useState<ExperimentRecipe[]>([])
@@ -200,6 +201,7 @@ function App() {
             <button className={activeLab === 'ica' ? 'active' : ''} onClick={() => setActiveLab('ica')}>02 · ICA</button>
             <button className={activeLab === 'connectivity' ? 'active' : ''} onClick={() => setActiveLab('connectivity')}>03 · Connectivity</button>
             <button className={activeLab === 'source' ? 'active' : ''} onClick={() => setActiveLab('source')}>04 · Source</button>
+            <button className={activeLab === 'real' ? 'active' : ''} onClick={() => setActiveLab('real')}>05 · Real data</button>
           </div>
           <span className={`service-state ${serviceReady === false ? 'offline' : ''}`}>
             <i />{serviceReady === null ? 'Checking service' : serviceReady ? 'Local service ready' : 'Service offline'}
@@ -218,7 +220,7 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'ica' ? <IcaWorkbench /> : activeLab === 'connectivity' ? <ConnectivityWorkbench /> : activeLab === 'source' ? <SourceModelWorkbench /> : <>
+      {activeLab === 'ica' ? <IcaWorkbench /> : activeLab === 'connectivity' ? <ConnectivityWorkbench /> : activeLab === 'source' ? <SourceModelWorkbench /> : activeLab === 'real' ? <RealDataWorkbench /> : <>
         <main className="workspace">
         <nav className="lesson-rail" aria-label="Lesson progress">
           <div className="rail-top"><BookOpen size={17} /><span>LAB 01</span></div>

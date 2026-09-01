@@ -400,3 +400,77 @@ class SourceModelResult(ContractModel):
     sensor_positions: list[tuple[float, float]]
     scores: SourceReconstructionScores
     provenance: Provenance
+
+
+class LocalImportRequest(ContractModel):
+    """A path selected by the local user; the service copies but never overwrites it."""
+
+    source_path: str = Field(min_length=1)
+    project_name: str = Field(default="Imported EEG recording", min_length=1, max_length=120)
+
+
+class RecordingInspection(ContractModel):
+    source_name: str
+    format: Literal["fif", "edf", "bdf", "brainvision", "eeglab"]
+    source_sha256: str
+    channel_count: int
+    eeg_channel_count: int
+    channel_names: list[str]
+    channel_types: dict[str, int]
+    sampling_rate_hz: float
+    duration_s: float
+    highpass_hz: float | None
+    lowpass_hz: float | None
+    annotation_count: int
+    digitization_point_count: int
+    montage_present: bool
+    warnings: list[WarningMessage]
+
+
+class RealDataQcSummary(ContractModel):
+    channel_count: int
+    eeg_channel_count: int
+    duration_s: float
+    sampling_rate_hz: float
+    bad_channels: list[str]
+    flat_channels: list[str]
+    annotation_count: int
+    alpha_relative_power: float | None
+    warnings: list[WarningMessage]
+
+
+class RealDataProject(ContractModel):
+    project_id: str
+    schema_version: int
+    migration_status: Literal["current", "migrated", "recovered"]
+    project_name: str
+    source_name: str
+    source_format: Literal["fif", "edf", "bdf", "brainvision", "eeglab"]
+    working_copy_name: str
+    imported_at: datetime
+
+
+class RealDataImportResult(ContractModel):
+    project: RealDataProject
+    inspection: RecordingInspection
+    qc: RealDataQcSummary
+    report_available: bool
+
+
+class EegbciLessonStatus(ContractModel):
+    state: Literal["cached", "not_cached"]
+    cache_directory: str
+    available_runs: list[int]
+    message: str
+
+
+class EegbciImportRequest(ContractModel):
+    run: Literal[1, 2]
+    project_name: str = Field(default="EEGBCI offline lesson", min_length=1, max_length=120)
+
+
+class ReportExportResult(ContractModel):
+    project_id: str
+    report_name: str
+    download_path: str
+    generated_at: datetime

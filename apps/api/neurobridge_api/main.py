@@ -3,17 +3,24 @@ from __future__ import annotations
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from neurobridge import __version__
 from neurobridge.connectivity import run_connectivity_challenge
 from neurobridge.contracts.models import (
     ConnectivityRecipe,
     ConnectivityResult,
+    EegbciImportRequest,
     ExperimentRecipe,
     ExperimentResult,
     IcaApplyRequest,
     IcaApplyResult,
     IcaFitResult,
     IcaRecipe,
+    LocalImportRequest,
+    RealDataImportResult,
+    RealDataProject,
+    RecordingInspection,
+    ReportExportResult,
     SourceModelRecipe,
     SourceModelResult,
     WarningMessage,
@@ -21,6 +28,15 @@ from neurobridge.contracts.models import (
 from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench
 from neurobridge.module_registry import capability_manifest
 from neurobridge.preprocessing import validate_recipe
+from neurobridge.real_data import (
+    default_project_root,
+    eegbci_lesson_status,
+    export_project_report,
+    import_eegbci_run,
+    import_local_recording,
+    inspect_local_recording,
+    recover_project,
+)
 from neurobridge.service import run_experiment
 from neurobridge.source_modeling import run_source_model_benchmark
 from pydantic import BaseModel
@@ -121,6 +137,17 @@ def lessons() -> list[dict[str, object]]:
             "steps": ["Predict", "Project", "Reconstruct", "Extract", "Compare", "Reveal"],
             "estimated_minutes": 15,
         },
+        {
+            "id": "real-data.eegbci-eyes",
+            "version": "1.0.0",
+            "title": "From local recording to QC report",
+            "objective": (
+                "Inspect a local recording without changing it, save a FIF working copy, "
+                "review descriptive QC, and export a provenance record."
+            ),
+            "steps": ["Resolve", "Inspect", "Copy", "QC", "Report", "Review"],
+            "estimated_minutes": 12,
+        },
     ]
 
 
@@ -171,6 +198,61 @@ def create_connectivity_run(recipe: ConnectivityRecipe) -> ConnectivityResult:
 @app.post("/source-modeling/runs", response_model=SourceModelResult)
 def create_source_model_run(recipe: SourceModelRecipe) -> SourceModelResult:
     return run_source_model_benchmark(recipe)
+
+
+@app.post("/real-data/inspect", response_model=RecordingInspection)
+def inspect_real_data(request: LocalImportRequest) -> RecordingInspection:
+    try:
+        return inspect_local_recording(request.source_path)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/real-data/imports", response_model=RealDataImportResult)
+def import_real_data(request: LocalImportRequest) -> RealDataImportResult:
+    try:
+        return import_local_recording(request)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.get("/real-data/eegbci/status")
+def get_eegbci_lesson_status():
+    return eegbci_lesson_status()
+
+
+@app.post("/real-data/eegbci/import", response_model=RealDataImportResult)
+def import_cached_eegbci_run(request: EegbciImportRequest) -> RealDataImportResult:
+    try:
+        return import_eegbci_run(request)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@app.post("/real-data/projects/{project_id}/recover", response_model=RealDataProject)
+def recover_real_data_project(project_id: str) -> RealDataProject:
+    try:
+        return recover_project(project_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.post("/reports", response_model=ReportExportResult)
+def create_report(project_id: str) -> ReportExportResult:
+    try:
+        return export_project_report(project_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.get("/real-data/projects/{project_id}/report")
+def download_report(project_id: str):
+    report_path = default_project_root() / project_id / "qc-report.html"
+    if not report_path.is_file():
+        raise HTTPException(
+            status_code=404, detail="QC report has not been generated for this project"
+        )
+    return FileResponse(report_path, media_type="text/html", filename="qc-report.html")
 
 
 def run() -> None:

@@ -8,6 +8,12 @@ import type {
   IcaRecipe,
   SourceModelRecipe,
   SourceModelResult,
+  EegbciLessonStatus,
+  EegbciImportRequest,
+  LocalImportRequest,
+  RealDataImportResult,
+  RecordingInspection,
+  ReportExportResult,
 } from '../types'
 
 const apiBase = import.meta.env.VITE_API_URL ?? '/api'
@@ -70,4 +76,30 @@ export function runConnectivity(recipe: ConnectivityRecipe): Promise<Connectivit
 
 export function runSourceModel(recipe: SourceModelRecipe): Promise<SourceModelResult> {
   return postJson<SourceModelResult>('/source-modeling/runs', recipe)
+}
+
+export function inspectRealData(request: LocalImportRequest): Promise<RecordingInspection> {
+  return postJson<RecordingInspection>('/real-data/inspect', request)
+}
+
+export function importRealData(request: LocalImportRequest): Promise<RealDataImportResult> {
+  return postJson<RealDataImportResult>('/real-data/imports', request)
+}
+
+export async function getEegbciLessonStatus(): Promise<EegbciLessonStatus> {
+  const response = await fetch(`${apiBase}/real-data/eegbci/status`)
+  if (!response.ok) throw new Error('Could not inspect the local EEGBCI cache.')
+  return response.json() as Promise<EegbciLessonStatus>
+}
+
+export function importCachedEegbci(request: EegbciImportRequest): Promise<RealDataImportResult> {
+  return postJson<RealDataImportResult>('/real-data/eegbci/import', request)
+}
+
+export function exportQcReport(projectId: string): Promise<ReportExportResult> {
+  return postJson<ReportExportResult>(`/reports?project_id=${encodeURIComponent(projectId)}`, {})
+}
+
+export function reportDownloadUrl(path: string): string {
+  return `${apiBase}${path}`
 }
