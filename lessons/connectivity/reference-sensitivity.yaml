@@ -14,4 +14,4 @@ checkpoints:
   - compare_sensor_and_latent_spaces
   - state_reference_dependence_in_words
 reflection: Explain why connectivity runs with inconsistent references cannot be compared as if preprocessing were identical.
-engine_version: 0.1.0
+engine_version: 0.2.0

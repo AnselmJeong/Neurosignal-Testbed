@@ -14,4 +14,4 @@ checkpoints:
   - inspect_source_resolution_cross_talk
   - reveal_template_vertex_truth
 reflection: Explain why a low location error in this template simulation does not validate an individualized source-localization result.
-engine_version: 0.1.0
+engine_version: 0.2.0

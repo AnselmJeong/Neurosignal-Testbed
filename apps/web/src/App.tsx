@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { AboutExperience } from './components/AboutDialog'
 import { LineChart } from './components/Charts'
 import { ConnectivityWorkbench } from './components/ConnectivityWorkbench'
 import { IcaWorkbench } from './components/IcaWorkbench'
@@ -253,6 +254,7 @@ function App() {
           </div>
         </details>
         <div className="header-actions">
+          <AboutExperience />
           <span className={`service-state ${serviceReady === false ? 'offline' : ''}`}>
             <i />{serviceReady === null ? 'Checking service' : serviceReady ? 'Local service ready' : 'Service offline'}
           </span>

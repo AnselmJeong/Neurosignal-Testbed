@@ -47,7 +47,7 @@ from pydantic import BaseModel
 
 app = FastAPI(
     title="NeuroSignal API",
-    version="1.0.0",
+    version=__version__,
     description=(
         "Local-only scientific execution service. Educational and research use; "
         "not clinical diagnosis."

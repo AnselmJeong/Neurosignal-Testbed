@@ -14,4 +14,4 @@ checkpoints:
   - compare_coherence_with_lag_sensitive_metric
   - reveal_one_edge_latent_truth
 reflection: Explain why a sensor-space edge is neither a source edge nor evidence of causality.
-engine_version: 0.1.0
+engine_version: 0.2.0

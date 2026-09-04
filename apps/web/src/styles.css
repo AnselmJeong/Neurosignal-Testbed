@@ -53,6 +53,18 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .quiet-button { padding: 0 13px; font-size: 13px; font-weight: 650; }
 .primary-button { padding: 0 16px; border-color: var(--accent); background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 5px 18px rgba(8,127,131,.13); }
 .primary-button:hover { background: var(--accent-dark); }
+.about-button { color: #4e5b55; }
+.about-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(20, 27, 24, .54); backdrop-filter: blur(7px); animation: reveal-in .18s ease; }
+.about-dialog { width: min(470px, calc(100vw - 48px)); padding: 38px; position: relative; border: 1px solid #bfc7c1; background: #f7f7f2; box-shadow: 0 28px 72px rgba(14, 22, 18, .28); }
+.about-close { position: absolute; top: 14px; right: 14px; }
+.about-mark { width: 54px; height: 54px; margin-bottom: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; }
+.about-dialog h2 { margin: 10px 0 13px; font-size: 31px; line-height: 1.02; letter-spacing: -.05em; }
+.about-dialog > p { margin: 0; color: #646c66; font-size: 13px; line-height: 1.65; }
+.about-dialog dl { margin: 28px 0 20px; border-top: 1px solid var(--line-strong); }
+.about-dialog dl > div { display: flex; justify-content: space-between; gap: 20px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.about-dialog dt { color: #767e77; font: 500 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.about-dialog dd { margin: 0; font-size: 13px; font-weight: 700; }
+.about-dialog > small { color: #7b827c; font: 500 9px/1.5 var(--mono); }
 
 .workspace { display: grid; grid-template-columns: 252px minmax(260px, 276px) minmax(470px, 1fr) minmax(300px, 324px); min-height: 0; background: var(--stone); }
 .lab-navigation { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 0; background: #252a27; color: #eef0eb; }

@@ -8,4 +8,4 @@ controls:
 prediction_prompt: Which planted peaks will remain after filtering, and what happens if sampling drops to 100 Hz?
 reveal_policy: deliberate
 reflection: Explain one change using Nyquist frequency or filter attenuation.
-engine_version: 0.1.0
+engine_version: 0.2.0
