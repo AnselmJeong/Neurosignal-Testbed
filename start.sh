@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Start the local NeuroBridge API and browser client together.
+# Start the local NeuroSignal API and browser client together.
 set -euo pipefail
 
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

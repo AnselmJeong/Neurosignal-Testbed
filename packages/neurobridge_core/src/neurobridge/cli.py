@@ -8,7 +8,7 @@ from neurobridge.service import run_experiment
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run a NeuroBridge experiment recipe")
+    parser = argparse.ArgumentParser(description="Run a NeuroSignal experiment recipe")
     parser.add_argument("recipe", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()

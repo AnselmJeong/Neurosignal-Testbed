@@ -1,6 +1,6 @@
 """
-NeuroBridge-EEG V2.1
-=====================
+Neurosignal Testbed V2.1
+========================
 
 Real EEG analysis prototype using the EEGBCI dataset.
 

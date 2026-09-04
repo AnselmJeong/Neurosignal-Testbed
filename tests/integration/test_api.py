@@ -14,7 +14,7 @@ def test_health_and_capabilities() -> None:
     assert payload["modules"][0]["status"] == "available"
 
 
-def test_neurobridge_web_origin_is_allowed() -> None:
+def test_neurosignal_web_origin_is_allowed() -> None:
     response = client.options(
         "/health",
         headers={
@@ -105,7 +105,7 @@ def test_source_model_template_benchmark_contract() -> None:
 
 
 def test_real_data_api_import_inspect_and_report(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("NEUROBRIDGE_PROJECTS_DIR", str(tmp_path / "projects"))
+    monkeypatch.setenv("NEUROSIGNAL_PROJECTS_DIR", str(tmp_path / "projects"))
     source = tmp_path / "api_source_raw.fif"
     raw = mne.io.RawArray(
         np.random.default_rng(8).normal(0, 1e-6, size=(4, 500)),

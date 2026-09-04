@@ -42,7 +42,7 @@ from neurobridge.source_modeling import run_source_model_benchmark
 from pydantic import BaseModel
 
 app = FastAPI(
-    title="NeuroBridge EEG Lab API",
+    title="NeuroSignal API",
     version="1.0.0",
     description=(
         "Local-only scientific execution service. Educational and research use; "

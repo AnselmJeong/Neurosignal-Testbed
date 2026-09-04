@@ -1,1 +1,1 @@
-"""NeuroBridge local API."""
+"""NeuroSignal local API."""

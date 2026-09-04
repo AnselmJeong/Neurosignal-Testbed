@@ -1,7 +1,7 @@
 """Local-only real-data workflow with an immutable source and FIF derivative.
 
 The service accepts a user-selected local path. It opens that path read-only,
-records a fingerprint, and writes all derived data under the NeuroBridge local
+records a fingerprint, and writes all derived data under the NeuroSignal local
 project directory. No preprocessing function ever receives the source path as
 an output destination.
 """
@@ -46,10 +46,15 @@ FORMAT_BY_SUFFIX = {
 
 
 def default_project_root() -> Path:
-    configured = os.environ.get("NEUROBRIDGE_PROJECTS_DIR")
+    configured = os.environ.get("NEUROSIGNAL_PROJECTS_DIR") or os.environ.get(
+        "NEUROBRIDGE_PROJECTS_DIR"
+    )
     if configured:
         return Path(configured).expanduser()
-    return Path.home() / "Library" / "Application Support" / "NeuroBridge EEG Lab" / "projects"
+    app_support = Path.home() / "Library" / "Application Support"
+    current = app_support / "NeuroSignal" / "projects"
+    legacy = app_support / "NeuroBridge EEG Lab" / "projects"
+    return legacy if legacy.exists() and not current.exists() else current
 
 
 def _eegbci_cache_root(cache_directory: str | None) -> Path:
@@ -119,7 +124,7 @@ def _inspection_warnings(raw: mne.io.BaseRaw) -> list[WarningMessage]:
             title="Keep identifiers local",
             explanation=(
                 "Recording metadata or file names can contain identifying information. "
-                "NeuroBridge stores the working copy and report only in the selected local project."
+                "NeuroSignal stores the working copy and report only in the selected local project."
             ),
             suggestion="Review filenames and metadata before sharing an exported report.",
         ),
@@ -291,7 +296,7 @@ def _load_manifest(project_dir: Path) -> tuple[dict[str, object], str]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     version = int(manifest.get("schema_version", 1))
     if version > CURRENT_PROJECT_SCHEMA:
-        raise ValueError(f"Project schema {version} is newer than this NeuroBridge version")
+        raise ValueError(f"Project schema {version} is newer than this NeuroSignal version")
     if version < CURRENT_PROJECT_SCHEMA:
         history = list(manifest.get("migration_history", []))
         history.append(f"v{version}_to_v{CURRENT_PROJECT_SCHEMA}")
@@ -359,7 +364,7 @@ def _report_html(
     alpha = "Not available" if qc.alpha_relative_power is None else f"{qc.alpha_relative_power:.3f}"
     return "".join(
         [
-            "<h2>NeuroBridge EEG Lab — Local QC record</h2>",
+            "<h2>NeuroSignal — Local QC record</h2>",
             (
                 "<p><strong>Educational and research use only. "
                 "Not for clinical diagnosis.</strong></p>"
@@ -398,7 +403,7 @@ def export_project_report(project_id: str, project_root: Path | None = None) -> 
         update={"source_name": project.source_name, "format": project.source_format}
     )
     qc = _qc(raw)
-    report = mne.Report(title="NeuroBridge local EEG QC", verbose=False)
+    report = mne.Report(title="NeuroSignal local EEG QC", verbose=False)
     report.add_html(_report_html(project, inspection, qc), title="QC summary")
     report_path = project_dir / REPORT_NAME
     report.save(report_path, open_browser=False, overwrite=True, verbose=False)

@@ -1,6 +1,6 @@
-# NeuroBridge-EEG
+# Neurosignal Testbed
 
-## NeuroBridge EEG Lab — Phase 1–5 web vertical slices
+## NeuroSignal — Phase 1–5 web vertical slices
 
 The repository includes the first five working slices of the product described in
 [`PRD.md`](PRD.md) and [`implementation_plan.md`](implementation_plan.md): a local-first,
@@ -46,7 +46,7 @@ caveats without simulation-score language.
 ```bash
 # Terminal 1 · scientific service
 uv sync --extra dev --extra ica
-uv run neurobridge-api
+uv run neurosignal-api
 
 # Terminal 2 · browser client
 cd apps/web
@@ -56,7 +56,7 @@ npm run dev
 
 Open [http://127.0.0.1:5174](http://127.0.0.1:5174). The API documentation is available at
 [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs). These ports are reserved for
-NeuroBridge development so it does not collide with ScholarPen on ports 5173 and 8000. The web
+NeuroSignal development so it does not collide with ScholarPen on ports 5173 and 8000. The web
 server uses a strict port and exits instead of silently moving to another port when 5174 is busy.
 
 ### Verify
@@ -74,7 +74,7 @@ the browser MVP gate in the implementation plan is complete.
 
 ## V2.1 — Exploratory EEG Prototype Validation
 
-NeuroBridge-EEG is a research-oriented EEG analysis and machine-learning prototype built with Python and MNE-Python.
+Neurosignal Testbed is a research-oriented EEG analysis and machine-learning prototype built with Python and MNE-Python.
 
 The V2.1 pipeline loads a real 64-channel EEG recording, performs preprocessing and event/epoch analysis, extracts time- and frequency-domain features, evaluates T1/T2 classification with support-vector machines (SVM), and performs cross-validation, repeated cross-validation, feature analysis, and permutation testing.
 
@@ -372,7 +372,7 @@ PART 1AG COMPLETE
 
 The primary research files are organized as follows:
 
-NeuroBridge-EEG/
+Neurosignal-Testbed/
 │
 ├── neurobridge_eeg_pipeline_v2_1.py
 ├── mne_first_real_eeg.py
@@ -494,7 +494,7 @@ See the LICENSE file included in this repository.
 
 24. Project Status
 
-NeuroBridge-EEG V2.1
+Neurosignal Testbed V2.1
 
 STATUS: EXPLORATORY EEG PROTOTYPE VALIDATION
 

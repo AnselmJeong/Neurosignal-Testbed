@@ -46,6 +46,11 @@ const STEPS = [
 const VIEWS = ['Channel detail', 'Filter response'] as const
 type View = (typeof VIEWS)[number]
 
+const PROJECTS_STORAGE_KEY = 'neurosignal-workspace-projects'
+const ACTIVE_PROJECT_STORAGE_KEY = 'neurosignal-active-workspace-project'
+const LEGACY_PROJECTS_STORAGE_KEY = 'neurobridge-workspace-projects'
+const LEGACY_ACTIVE_PROJECT_STORAGE_KEY = 'neurobridge-active-workspace-project'
+
 const cloneRecipe = (recipe: ExperimentRecipe): ExperimentRecipe => structuredClone(recipe)
 const formatWeight = (value: number | undefined) => value === undefined ? '—' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}`
 
@@ -64,10 +69,15 @@ function App() {
   const [truthVisible, setTruthVisible] = useState(false)
   const [serviceReady, setServiceReady] = useState<boolean | null>(null)
   const [projects, setProjects] = useState(() => {
-    const saved = window.localStorage.getItem('neurobridge-workspace-projects')
+    const saved = window.localStorage.getItem(PROJECTS_STORAGE_KEY)
+      ?? window.localStorage.getItem(LEGACY_PROJECTS_STORAGE_KEY)
     return saved ? JSON.parse(saved) as { id: string; name: string }[] : [{ id: 'learning-workspace', name: 'Learning workspace' }]
   })
-  const [activeProjectId, setActiveProjectId] = useState(() => window.localStorage.getItem('neurobridge-active-workspace-project') ?? 'learning-workspace')
+  const [activeProjectId, setActiveProjectId] = useState(() => (
+    window.localStorage.getItem(ACTIVE_PROJECT_STORAGE_KEY)
+      ?? window.localStorage.getItem(LEGACY_ACTIVE_PROJECT_STORAGE_KEY)
+      ?? 'learning-workspace'
+  ))
   const [newProjectName, setNewProjectName] = useState('')
   const importRef = useRef<HTMLInputElement>(null)
 
@@ -108,11 +118,11 @@ function App() {
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem('neurobridge-workspace-projects', JSON.stringify(projects))
+    window.localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects))
   }, [projects])
 
   useEffect(() => {
-    window.localStorage.setItem('neurobridge-active-workspace-project', activeProjectId)
+    window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, activeProjectId)
   }, [activeProjectId])
 
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
@@ -198,7 +208,7 @@ function App() {
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `neurobridge-${recipe.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
+    anchor.download = `neurosignal-${recipe.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -211,7 +221,7 @@ function App() {
       commit(next)
       setTruthVisible(false)
     } catch {
-      setRequest({ status: 'error', message: 'This file is not a compatible NeuroBridge 1.0 recipe.' })
+      setRequest({ status: 'error', message: 'This file is not a compatible NeuroSignal 1.0 recipe.' })
     }
   }
 
@@ -221,8 +231,8 @@ function App() {
         <div className="brand-lockup">
           <div className="brand-mark" aria-hidden="true"><Activity size={22} strokeWidth={2.1} /></div>
           <div>
-            <strong>NeuroBridge</strong>
-            <span>EEG LAB</span>
+            <strong>NeuroSignal</strong>
+            <span>TESTBED</span>
           </div>
         </div>
         <details className="project-menu">

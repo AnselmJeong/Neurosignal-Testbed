@@ -6,6 +6,7 @@ import mne
 import numpy as np
 from neurobridge.contracts.models import LocalImportRequest
 from neurobridge.real_data import (
+    default_project_root,
     eegbci_lesson_status,
     export_project_report,
     import_local_recording,
@@ -42,6 +43,20 @@ def test_import_to_report_preserves_source_and_avoids_simulation_language(tmp_pa
     assert "truth" not in report.lower()
     assert "latent" not in report.lower()
     assert "not for clinical diagnosis" in report.lower()
+    assert "NeuroSignal" in report
+
+
+def test_project_root_prefers_new_name_and_supports_legacy_override(
+    tmp_path: Path, monkeypatch
+) -> None:
+    current = tmp_path / "neurosignal-projects"
+    legacy = tmp_path / "neurobridge-projects"
+    monkeypatch.setenv("NEUROSIGNAL_PROJECTS_DIR", str(current))
+    monkeypatch.setenv("NEUROBRIDGE_PROJECTS_DIR", str(legacy))
+    assert default_project_root() == current
+
+    monkeypatch.delenv("NEUROSIGNAL_PROJECTS_DIR")
+    assert default_project_root() == legacy
 
 
 def test_manifest_migration_and_missing_manifest_recovery(tmp_path: Path) -> None:

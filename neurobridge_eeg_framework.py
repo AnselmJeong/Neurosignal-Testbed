@@ -1,12 +1,12 @@
 """
-NeuroBridge-EEG
-================
+Neurosignal Testbed
+==================
 
 File:
     neurobridge_eeg_framework.py
 
 Purpose:
-    NeuroBridge-EEG is an open-source neuroengineering research
+    Neurosignal Testbed is an open-source neuroengineering research
     framework for simulated EEG signal processing, feature extraction,
     supervised machine learning, and neurological signal analysis.
 

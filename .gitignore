@@ -44,6 +44,6 @@ build/
 dist/
 *.egg-info/
 
-# NeuroBridge-EEG development and backup files
+# Neurosignal Testbed development and backup files
 Backups/
 DEVELOPMENT_ARCHIVE/

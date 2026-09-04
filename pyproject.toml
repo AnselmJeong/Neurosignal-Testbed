@@ -1,5 +1,5 @@
 [project]
-name = "neurobridge-eeg-lab"
+name = "neurosignal-testbed"
 version = "0.1.0"
 description = "Truth-first local EEG simulation and learning workbench"
 readme = "README.md"
@@ -29,6 +29,9 @@ ica = [
 ]
 
 [project.scripts]
+neurosignal-api = "neurobridge_api.main:run"
+neurosignal-recipe = "neurobridge.cli:main"
+# Compatibility aliases retained for existing local workflows.
 neurobridge-api = "neurobridge_api.main:run"
 neurobridge-recipe = "neurobridge.cli:main"
 

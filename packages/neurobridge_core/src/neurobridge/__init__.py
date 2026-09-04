@@ -1,3 +1,3 @@
-"""NeuroBridge EEG Lab scientific core."""
+"""NeuroSignal scientific core."""
 
 __version__ = "0.1.0"

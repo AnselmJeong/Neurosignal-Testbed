@@ -1,4 +1,4 @@
-# NeuroBridge EEG Lab implementation plan
+# NeuroSignal implementation plan
 
 _Draft v0.2 · 2026-08-31 · Implementation contract for the product defined in [`PRD.md`](PRD.md)_
 
@@ -6,7 +6,7 @@ _Draft v0.2 · 2026-08-31 · Implementation contract for the product defined in 
 
 ## 📋 Delivery strategy
 
-Build NeuroBridge EEG Lab as a local-first web application with a separately testable scientific core. The first vertical slice must prove the entire truth loop on a small linear mixture before introducing anatomical forward models, source reconstruction, or desktop packaging.
+Build NeuroSignal as a local-first web application with a separately testable scientific core. The first vertical slice must prove the entire truth loop on a small linear mixture before introducing anatomical forward models, source reconstruction, or desktop packaging.
 
 The implementation order is intentional:
 
@@ -22,7 +22,7 @@ The implementation order is intentional:
 
 ```mermaid
 flowchart LR
-    accTitle: NeuroBridge Delivery Sequence
+    accTitle: NeuroSignal Delivery Sequence
     accDescr: The project moves from verified scientific primitives to an interactive web learning slice, expands through ICA, connectivity, source modeling, and real data, then branches into advanced modules and desktop packaging
 
     contracts([📋 Define contracts]) --> core[🧪 Verify science core]
@@ -66,7 +66,7 @@ Do not embed scientific logic in API routes or React components. The Python core
 
 ```mermaid
 flowchart TB
-    accTitle: NeuroBridge System Architecture
+    accTitle: NeuroSignal System Architecture
     accDescr: A React learning interface calls a local FastAPI service, which executes versioned scientific recipes through a pure Python core and stores immutable inputs plus derived artifacts
 
     learner([👤 Learner]) --> web_client[🎨 React client]
@@ -113,7 +113,7 @@ flowchart TB
 ### Proposed repository layout
 
 ```text
-Neurobridge-EEG/
+Neurosignal-Testbed/
 ├── pyproject.toml
 ├── uv.lock
 ├── PRD.md

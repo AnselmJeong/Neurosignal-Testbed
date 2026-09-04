@@ -1,4 +1,4 @@
-# NeuroBridge EEG Lab product requirements
+# NeuroSignal product requirements
 
 _Draft v0.2 · 2026-08-31 · Local-first educational EEG simulation and functional-connectivity workbench_
 
@@ -6,7 +6,7 @@ _Draft v0.2 · 2026-08-31 · Local-first educational EEG simulation and function
 
 ## 📋 Executive summary
 
-NeuroBridge EEG Lab is an interactive education and research-prototyping application for learning how scalp EEG is generated, transformed, cleaned, and analyzed. A learner should be able to build a signal from known latent sources, project or mix it into sensor data, introduce controlled artifacts, operate an MNE-Python analysis pipeline, estimate functional connectivity, and compare the estimate with the known simulation truth.
+NeuroSignal is an interactive education and research-prototyping application for learning how scalp EEG is generated, transformed, cleaned, and analyzed. A learner should be able to build a signal from known latent sources, project or mix it into sensor data, introduce controlled artifacts, operate an MNE-Python analysis pipeline, estimate functional connectivity, and compare the estimate with the known simulation truth.
 
 The product is not a diagnostic device and will not present real-data results as ground truth. Its differentiator is a **truth-first learning loop**: every lesson begins with a controlled system, asks the learner to predict what an analysis will recover, reveals the truth only at the appropriate moment, and explains why an estimate succeeds or fails.
 
@@ -415,7 +415,7 @@ Candidate advanced families include event-related statistics, time-frequency ana
 
 ```mermaid
 flowchart TB
-    accTitle: NeuroBridge Product Areas
+    accTitle: NeuroSignal Product Areas
     accDescr: The application starts from guided learning or an open lab, shares one experiment workspace, and produces reproducible comparisons and reports
 
     home([🏠 Home]) --> learn[📚 Guided lessons]
