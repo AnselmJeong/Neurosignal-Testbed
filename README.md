@@ -1,5 +1,13 @@
 # Neurosignal Testbed
 
+The Real data lab now includes `@neurosignal/trace-viewer` 0.4.0 after FIF import. It reads only
+the requested time/channel window from the imported working copy, offers Canvas navigation,
+and preserves the original recording. The portable package tarball is in `apps/web/vendor/`.
+Trace metadata/window routes are read-only; **Refresh traces** reloads changed working-copy metadata.
+Run `.venv/bin/python -m pytest tests/oracle/test_trace_window.py` for MNE/immutability checks and
+`npm test --prefix apps/web` for the transport adapter tests. The sibling EEG-Tracer repository's
+`npm run check:real-data` exercises the complete import-to-viewer browser workflow with temporary data.
+
 ## NeuroSignal — Phase 1–6 web vertical slices
 
 The repository includes the first five working slices of the product described in

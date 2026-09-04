@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@neurosignal/trace-viewer": "file:vendor/neurosignal-trace-viewer-0.4.0.tgz",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "react": "latest",

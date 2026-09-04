@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from neurobridge import __version__
@@ -41,6 +43,7 @@ from neurobridge.real_data import (
     recover_project,
     run_qeeg_analysis,
 )
+from neurobridge.real_data.trace import StaleTraceRevision, trace_metadata, trace_window
 from neurobridge.service import run_experiment
 from neurobridge.source_modeling import run_source_model_benchmark
 from pydantic import BaseModel
@@ -274,6 +277,31 @@ def create_report(project_id: str) -> ReportExportResult:
         return export_project_report(project_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.get("/real-data/projects/{project_id}/trace-metadata")
+def get_trace_metadata(project_id: str):
+    try:
+        return trace_metadata(project_id)
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.get("/real-data/projects/{project_id}/trace-window")
+def get_trace_window(
+    project_id: str, source_revision: str, start_s: float, duration_s: float,
+    channels: Annotated[list[str], Query()], pixel_width: int = 1200, representation: str = "auto",
+):
+    try:
+        return trace_window(
+            project_id, source_revision=source_revision, start_s=start_s,
+            duration_s=duration_s, channels=channels, pixel_width=pixel_width,
+            representation=representation,
+        )
+    except StaleTraceRevision as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except (ValueError, OSError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get("/real-data/projects/{project_id}/report")

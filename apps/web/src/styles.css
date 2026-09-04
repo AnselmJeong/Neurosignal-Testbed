@@ -624,3 +624,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.real-data-review-content { width: 100%; align-self: start; position: relative; min-width: 0; }
+.real-data-stage:has(.real-data-review-content) { display: block; overflow: auto; }
+.real-data-import-details { margin-bottom: 20px; font-size: 11px; }
+.real-data-import-details summary { cursor: pointer; padding: 10px 0; }
+.real-data-import-details .inspection-canvas { margin-top: 12px; }
+.real-data-trace-panel { min-width: 0; background: #f2f2ed; }
+.real-data-trace-panel .nsv-stage { height: 480px; }
