@@ -1,13 +1,10 @@
 import {
   Activity,
   AlertTriangle,
-  BrainCircuit,
-  Check,
   CircleDot,
   CircleHelp,
   Eye,
   EyeOff,
-  FlaskConical,
   Gauge,
   Grid3X3,
   Network,
@@ -30,12 +27,14 @@ import {
   type ConnectivitySpace,
 } from '../types'
 import { LineChart } from './Charts'
+import { ControlHint } from './ControlHint'
 import {
   CircleNetwork,
   ConnectivityHeatmap,
   ScalpNetwork,
   SurrogateDistribution,
 } from './ConnectivityViews'
+import { LabNavigator, type LabId } from './LabNavigator'
 
 const CONNECTIVITY_STEPS = [
   { label: 'Predict', icon: CircleHelp },
@@ -59,7 +58,7 @@ const METRICS = [
   { id: 'wpli', label: 'wPLI' },
 ] satisfies { id: ConnectivityMetric; label: string }[]
 
-export function ConnectivityWorkbench() {
+export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onLabChange: (lab: LabId) => void }) {
   const [recipe, setRecipe] = useState<ConnectivityRecipe>(() => structuredClone(defaultConnectivityRecipe))
   const [request, setRequest] = useState<ConnectivityRequestState>({ status: 'idle' })
   const [view, setView] = useState<ConnectivityView>('Matrix')
@@ -150,24 +149,7 @@ export function ConnectivityWorkbench() {
   return (
     <>
       <main className="workspace connectivity-workspace">
-        <nav className="lesson-rail" aria-label="Connectivity lesson progress">
-          <div className="rail-top"><BrainCircuit size={17} /><span>LAB 03</span></div>
-          <ol>
-            {CONNECTIVITY_STEPS.map((item, index) => {
-              const Icon = item.icon
-              return (
-                <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''}>
-                  <button onClick={() => setStep(index)} aria-current={index === step ? 'step' : undefined}>
-                    <span className="step-dot">{index < step ? <Check size={13} /> : <Icon size={15} />}</span>
-                    <small>0{index + 1}</small>
-                    <strong>{item.label}</strong>
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-          <div className="rail-bottom"><FlaskConical size={17} /><span>15 min</span></div>
-        </nav>
+        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={CONNECTIVITY_STEPS} step={step} onStep={setStep} />
 
         <aside className="control-panel connectivity-controls">
           <div className="panel-heading">
@@ -189,7 +171,7 @@ export function ConnectivityWorkbench() {
               ))}
             </div>
             <div className="segmented-field stack">
-              <span>Analysis space</span>
+              <span className="control-label">Analysis space<ControlHint>Sensor space estimates connections between scalp channels; latent space estimates the planted sources before scalp mixing.</ControlHint></span>
               <div role="group" aria-label="Connectivity analysis space">
                 {(['sensor', 'latent'] as const).map((space: ConnectivitySpace) => (
                   <button key={space} className={displaySpace === space ? 'selected' : ''} onClick={() => updateSpace(space)}>{space === 'sensor' ? 'Sensor' : 'Latent'}</button>
@@ -197,7 +179,7 @@ export function ConnectivityWorkbench() {
               </div>
             </div>
             <div className="segmented-field stack">
-              <span>Spectral mode</span>
+              <span className="control-label">Spectral mode<ControlHint>Chooses how the spectrum and connectivity estimate are calculated. Multitaper trades a little frequency detail for a steadier estimate.</ControlHint></span>
               <div role="group" aria-label="Spectral estimation mode">
                 <button className={recipe.spectral_mode === 'multitaper' ? 'selected' : ''} onClick={() => updateRecipe('spectral_mode', 'multitaper')}>Multitaper</button>
                 <button className={recipe.spectral_mode === 'fourier' ? 'selected' : ''} onClick={() => updateRecipe('spectral_mode', 'fourier')}>Fourier</button>
@@ -207,10 +189,10 @@ export function ConnectivityWorkbench() {
 
           <section className="control-section">
             <div className="section-title"><span>Known network</span><small>ALPHA · 8–12 HZ</small></div>
-            <ConnectivityRange label="Phase lag" value={recipe.phase_lag_deg} min={0} max={120} step={15} unit="°" onChange={(value) => updateRecipe('phase_lag_deg', value)} />
-            <ConnectivityRange label="Coupling" value={recipe.coupling_strength} min={0} max={1} step={0.05} unit="" onChange={(value) => updateRecipe('coupling_strength', value)} />
-            <ConnectivityRange label="Field spread" value={recipe.volume_conduction} min={0} max={1} step={0.05} unit="" onChange={(value) => updateRecipe('volume_conduction', value)} />
-            <ConnectivityRange label="Epochs" value={recipe.epoch_count} min={8} max={64} step={4} unit="" onChange={(value) => updateRecipe('epoch_count', value)} />
+            <ConnectivityRange label="Phase lag" help="The time offset between the planted alpha sources. Phase-sensitive measures can change when this lag changes." value={recipe.phase_lag_deg} min={0} max={120} step={15} unit="°" onChange={(value) => updateRecipe('phase_lag_deg', value)} />
+            <ConnectivityRange label="Coupling" help="The strength of the single planted connection between latent sources." value={recipe.coupling_strength} min={0} max={1} step={0.05} unit="" onChange={(value) => updateRecipe('coupling_strength', value)} />
+            <ConnectivityRange label="Field spread" help="How strongly one source contributes to multiple sensors. More spread can create false sensor-space connections." value={recipe.volume_conduction} min={0} max={1} step={0.05} unit="" onChange={(value) => updateRecipe('volume_conduction', value)} />
+            <ConnectivityRange label="Epochs" help="The number of short data segments used for the estimate and shuffled null distribution. More epochs usually stabilize estimates." value={recipe.epoch_count} min={8} max={64} step={4} unit="" onChange={(value) => updateRecipe('epoch_count', value)} />
             <div className="segmented-field stack">
               <span>Sensor reference</span>
               <div role="group" aria-label="Sensor reference">
@@ -383,6 +365,7 @@ export function ConnectivityWorkbench() {
 
 interface ConnectivityRangeProps {
   label: string
+  help: string
   value: number
   min: number
   max: number
@@ -391,11 +374,11 @@ interface ConnectivityRangeProps {
   onChange: (value: number) => void
 }
 
-function ConnectivityRange({ label, value, min, max, step, unit, onChange }: ConnectivityRangeProps) {
+function ConnectivityRange({ label, help, value, min, max, step, unit, onChange }: ConnectivityRangeProps) {
   const progress = ((value - min) / (max - min)) * 100
   return (
     <label className="range-control connectivity-range">
-      <span>{label}<output>{Number.isInteger(step) ? value : value.toFixed(2)}{unit ? ` ${unit}` : ''}</output></span>
+      <span><span className="control-label">{label}<ControlHint>{help}</ControlHint></span><output>{Number.isInteger(step) ? value : value.toFixed(2)}{unit ? ` ${unit}` : ''}</output></span>
       <input type="range" aria-label={label} min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} style={{ '--range-progress': `${progress}%` } as React.CSSProperties} />
       <small><span>{min}</span><span>{max}</span></small>
     </label>

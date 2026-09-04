@@ -1,7 +1,6 @@
 import { useId, useMemo } from 'react'
 
 const WIDTH = 900
-const HEIGHT = 390
 const PAD = { left: 58, right: 24, top: 26, bottom: 42 }
 const COLORS = ['#087f83', '#c7653c', '#615b91']
 
@@ -22,6 +21,7 @@ interface LineChartProps {
   xDomain?: [number, number]
   logY?: boolean
   markers?: number[]
+  height?: number
 }
 
 function finiteExtent(values: number[]): [number, number] {
@@ -64,6 +64,7 @@ export function LineChart({
   xDomain,
   logY = false,
   markers = [],
+  height = 390,
 }: LineChartProps) {
   const id = useId().replace(/:/g, '')
   const domain = useMemo(() => {
@@ -73,7 +74,7 @@ export function LineChart({
     return { xs, ys }
   }, [x, xDomain, series, logY, yDomain])
   const innerWidth = WIDTH - PAD.left - PAD.right
-  const innerHeight = HEIGHT - PAD.top - PAD.bottom
+  const innerHeight = height - PAD.top - PAD.bottom
   const sx = (value: number) => PAD.left + ((value - domain.xs[0]) / (domain.xs[1] - domain.xs[0])) * innerWidth
   const sy = (value: number) => PAD.top + innerHeight - ((value - domain.ys[0]) / (domain.ys[1] - domain.ys[0])) * innerHeight
   const xTicks = Array.from({ length: 6 }, (_, i) => domain.xs[0] + ((domain.xs[1] - domain.xs[0]) * i) / 5)
@@ -81,7 +82,7 @@ export function LineChart({
 
   return (
     <div className="chart-wrap">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={ariaLabel} className="chart">
+      <svg viewBox={`0 0 ${WIDTH} ${height}`} role="img" aria-label={ariaLabel} className="chart">
         <defs>
           <clipPath id={`clip-${id}`}>
             <rect x={PAD.left} y={PAD.top} width={innerWidth} height={innerHeight} />
@@ -102,8 +103,8 @@ export function LineChart({
         ))}
         {xTicks.map((tick) => (
           <g key={`x-${tick}`}>
-            <line x1={sx(tick)} x2={sx(tick)} y1={PAD.top} y2={HEIGHT - PAD.bottom} className="grid-line vertical" />
-            <text x={sx(tick)} y={HEIGHT - PAD.bottom + 24} textAnchor="middle" className="axis-tick">
+            <line x1={sx(tick)} x2={sx(tick)} y1={PAD.top} y2={height - PAD.bottom} className="grid-line vertical" />
+            <text x={sx(tick)} y={height - PAD.bottom + 24} textAnchor="middle" className="axis-tick">
               {tick.toFixed(tick < 10 ? 1 : 0)}
             </text>
           </g>
@@ -111,7 +112,7 @@ export function LineChart({
         <g clipPath={`url(#clip-${id})`}>
           {markers.filter((marker) => marker >= domain.xs[0] && marker <= domain.xs[1]).map((marker) => (
             <g key={marker}>
-              <line x1={sx(marker)} x2={sx(marker)} y1={PAD.top} y2={HEIGHT - PAD.bottom} className="truth-marker" />
+              <line x1={sx(marker)} x2={sx(marker)} y1={PAD.top} y2={height - PAD.bottom} className="truth-marker" />
               <text x={sx(marker) + 5} y={PAD.top + 14} className="marker-label">{Number.isInteger(marker) ? marker : marker.toFixed(1)} Hz</text>
             </g>
           ))}
@@ -127,8 +128,8 @@ export function LineChart({
             />
           ))}
         </g>
-        <text x={(PAD.left + WIDTH - PAD.right) / 2} y={HEIGHT - 5} textAnchor="middle" className="axis-label">{xLabel}</text>
-        <text x={15} y={HEIGHT / 2} transform={`rotate(-90 15 ${HEIGHT / 2})`} textAnchor="middle" className="axis-label">{yLabel}</text>
+        <text x={(PAD.left + WIDTH - PAD.right) / 2} y={height - 5} textAnchor="middle" className="axis-label">{xLabel}</text>
+        <text x={15} y={height / 2} transform={`rotate(-90 15 ${height / 2})`} textAnchor="middle" className="axis-label">{yLabel}</text>
       </svg>
       <div className="chart-legend" aria-hidden="true">
         {series.map((item, index) => (

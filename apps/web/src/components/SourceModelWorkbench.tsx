@@ -1,11 +1,9 @@
 import {
   AlertTriangle,
   BrainCircuit,
-  Check,
   CircleHelp,
   Eye,
   EyeOff,
-  FlaskConical,
   MapPinned,
   Play,
   ScanLine,
@@ -23,6 +21,8 @@ import {
   type SourceModelRequestState,
 } from '../types'
 import { LineChart } from './Charts'
+import { ControlHint } from './ControlHint'
+import { LabNavigator, type LabId } from './LabNavigator'
 
 const STEPS = [
   { label: 'Predict', icon: CircleHelp },
@@ -36,7 +36,7 @@ const STEPS = [
 const VIEWS = ['Sensor', 'ROI traces', 'Forward maps', 'Leakage'] as const
 type SourceView = (typeof VIEWS)[number]
 
-export function SourceModelWorkbench() {
+export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onLabChange: (lab: LabId) => void }) {
   const [recipe, setRecipe] = useState<SourceModelRecipe>(() => structuredClone(defaultSourceModelRecipe))
   const [request, setRequest] = useState<SourceModelRequestState>({ status: 'idle' })
   const [view, setView] = useState<SourceView>('ROI traces')
@@ -99,18 +99,7 @@ export function SourceModelWorkbench() {
   return (
     <>
       <main className="workspace source-workspace">
-        <nav className="lesson-rail" aria-label="Source modeling lesson progress">
-          <div className="rail-top"><BrainCircuit size={17} /><span>LAB 04</span></div>
-          <ol>{STEPS.map((item, index) => {
-            const Icon = item.icon
-            return <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''}>
-              <button onClick={() => setStep(index)} aria-current={index === step ? 'step' : undefined}>
-                <span className="step-dot">{index < step ? <Check size={13} /> : <Icon size={15} />}</span><small>0{index + 1}</small><strong>{item.label}</strong>
-              </button>
-            </li>
-          })}</ol>
-          <div className="rail-bottom"><FlaskConical size={17} /><span>15 min</span></div>
-        </nav>
+        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={STEPS} step={step} onStep={setStep} />
 
         <aside className="control-panel source-controls">
           <div className="panel-heading">
@@ -125,9 +114,9 @@ export function SourceModelWorkbench() {
           <section className="control-section">
             <div className="section-title"><span>Template forward model</span><small>EDUCATIONAL ONLY</small></div>
             <p className="source-method-note">14-channel standard 10–20 montage · 90 mm sphere · 26 volume vertices</p>
-            <SourceRange label="Alpha phase lag" value={recipe.phase_lag_deg} min={0} max={120} step={5} unit="°" onChange={(value) => updateRecipe('phase_lag_deg', value)} />
-            <SourceRange label="Source amplitude" value={recipe.source_amplitude_nam} min={5} max={50} step={1} unit="nAm" onChange={(value) => updateRecipe('source_amplitude_nam', value)} />
-            <SourceRange label="Sensor noise" value={recipe.sensor_noise_uv} min={0} max={1} step={0.02} unit="µV" onChange={(value) => updateRecipe('sensor_noise_uv', value)} />
+            <SourceRange label="Alpha phase lag" help="The timing offset between the planted alpha sources. It changes the observed source and sensor patterns." value={recipe.phase_lag_deg} min={0} max={120} step={5} unit="°" onChange={(value) => updateRecipe('phase_lag_deg', value)} />
+            <SourceRange label="Source amplitude" help="The size of the planted ROI currents before they are projected to the scalp sensors." value={recipe.source_amplitude_nam} min={5} max={50} step={1} unit="nAm" onChange={(value) => updateRecipe('source_amplitude_nam', value)} />
+            <SourceRange label="Sensor noise" help="Random voltage added at the scalp sensors after forward projection. It makes reconstruction less certain." value={recipe.sensor_noise_uv} min={0} max={1} step={0.02} unit="µV" onChange={(value) => updateRecipe('sensor_noise_uv', value)} />
           </section>
           <section className="control-section source-contract-note">
             <div className="section-title"><span>Inverse</span><small>LOCKED FOR COMPARISON</small></div>
@@ -176,6 +165,6 @@ function LeakageMatrix({ labels, values }: { labels: string[]; values: number[][
   return <div className="leakage-stage"><div><span className="eyebrow">MNE source-resolution matrix</span><h3>How much one ROI appears in another</h3><p>Columns are planted sources and rows are extracted ROI proxies. Off-diagonal values are cross-talk, not evidence of a network edge.</p></div><div className="leakage-grid" style={{ gridTemplateColumns: `80px repeat(${labels.length}, minmax(48px, 1fr))` }}>{labels.map((label) => <span className="leakage-label top" key={`top-${label}`}>{label}</span>)}{values.map((row, rowIndex) => <div className="leakage-row" key={labels[rowIndex]}><span className="leakage-label">{labels[rowIndex]}</span>{row.map((value, columnIndex) => <span key={`${rowIndex}-${columnIndex}`} className={rowIndex === columnIndex ? 'leakage-cell diagonal' : 'leakage-cell'} style={{ backgroundColor: `rgba(0, 127, 131, ${Math.min(.1 + value * .9, 1)})` }}>{Math.round(value * 100)}%</span>)}</div>)}</div></div>
 }
 
-function SourceRange({ label, value, min, max, step, unit, onChange }: { label: string; value: number; min: number; max: number; step: number; unit: string; onChange: (value: number) => void }) {
-  return <label className="connectivity-range"><span>{label}<strong>{value}{unit && ` ${unit}`}</strong></span><input type="range" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} /></label>
+function SourceRange({ label, help, value, min, max, step, unit, onChange }: { label: string; help: string; value: number; min: number; max: number; step: number; unit: string; onChange: (value: number) => void }) {
+  return <label className="connectivity-range"><span><span className="control-label">{label}<ControlHint>{help}</ControlHint></span><strong>{value}{unit && ` ${unit}`}</strong></span><input type="range" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} /></label>
 }

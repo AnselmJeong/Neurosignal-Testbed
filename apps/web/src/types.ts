@@ -53,6 +53,8 @@ export interface ExperimentResult {
     frequency_hz: number[]
     raw_power: number[]
     filtered_power: number[]
+    raw_power_by_channel: Record<string, number[]>
+    filtered_power_by_channel: Record<string, number[]>
     unit: string
   }
   filter_response: {

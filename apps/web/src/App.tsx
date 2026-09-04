@@ -1,20 +1,18 @@
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
-  BookOpen,
-  Check,
   ChevronDown,
   CircleHelp,
   Download,
   Eye,
   EyeOff,
   FileJson,
-  FlaskConical,
+  FolderKanban,
   History,
   Info,
   Layers3,
   Play,
+  Plus,
   Redo2,
   RotateCcw,
   Save,
@@ -24,12 +22,13 @@ import {
   X,
   Zap,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { LineChart } from './components/Charts'
 import { ConnectivityWorkbench } from './components/ConnectivityWorkbench'
 import { IcaWorkbench } from './components/IcaWorkbench'
-import { MixingMatrix } from './components/MixingMatrix'
+import { ControlHint } from './components/ControlHint'
+import { LabNavigator, type LabId } from './components/LabNavigator'
 import { RealDataWorkbench } from './components/RealDataWorkbench'
 import { SourceModelWorkbench } from './components/SourceModelWorkbench'
 import { checkHealth, runRecipe } from './lib/api'
@@ -44,36 +43,88 @@ const STEPS = [
   { label: 'Reveal', icon: Eye },
 ]
 
-const VIEWS = ['Signal', 'Spectrum', 'Filter response', 'Mixing'] as const
+const VIEWS = ['Channel detail', 'Filter response'] as const
 type View = (typeof VIEWS)[number]
 
 const cloneRecipe = (recipe: ExperimentRecipe): ExperimentRecipe => structuredClone(recipe)
+const formatWeight = (value: number | undefined) => value === undefined ? '—' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}`
 
 function App() {
-  const [activeLab, setActiveLab] = useState<'filter' | 'ica' | 'connectivity' | 'source' | 'real'>('filter')
+  const [activeLab, setActiveLab] = useState<LabId>('filter')
   const [recipe, setRecipe] = useState<ExperimentRecipe>(() => cloneRecipe(defaultRecipe))
   const [past, setPast] = useState<ExperimentRecipe[]>([])
   const [future, setFuture] = useState<ExperimentRecipe[]>([])
   const [request, setRequest] = useState<RequestState>({ status: 'idle' })
   const [baseline, setBaseline] = useState<ExperimentResult | null>(null)
   const [runs, setRuns] = useState<ExperimentResult[]>([])
-  const [view, setView] = useState<View>('Signal')
+  const [view, setView] = useState<View>('Channel detail')
+  const [selectedChannel, setSelectedChannel] = useState(0)
   const [step, setStep] = useState(0)
   const [prediction, setPrediction] = useState('The 10 Hz peak will remain. The 60 Hz peak should be suppressed by the low-pass filter.')
   const [truthVisible, setTruthVisible] = useState(false)
   const [serviceReady, setServiceReady] = useState<boolean | null>(null)
-  const [projectTitle, setProjectTitle] = useState('My first truth loop')
-  const [editingTitle, setEditingTitle] = useState(false)
+  const [projects, setProjects] = useState(() => {
+    const saved = window.localStorage.getItem('neurobridge-workspace-projects')
+    return saved ? JSON.parse(saved) as { id: string; name: string }[] : [{ id: 'learning-workspace', name: 'Learning workspace' }]
+  })
+  const [activeProjectId, setActiveProjectId] = useState(() => window.localStorage.getItem('neurobridge-active-workspace-project') ?? 'learning-workspace')
+  const [newProjectName, setNewProjectName] = useState('')
   const importRef = useRef<HTMLInputElement>(null)
 
   const result = request.status === 'success' ? request.data : runs[0] ?? null
   const dirty = result ? JSON.stringify(recipe) !== JSON.stringify(result.recipe) : true
+  const channelCount = result?.recipe.simulation.channel_count ?? recipe.simulation.channel_count
+  const selectedChannelIndex = Math.min(selectedChannel, Math.max(0, channelCount - 1))
+  const selectedChannelName = `EEG ${String(selectedChannelIndex + 1).padStart(2, '0')}`
+  const selectedRawTrace = result?.traces.series[`Raw · ${selectedChannelName}`] ?? []
+  const selectedFilteredTrace = result?.traces.series[`Filtered · ${selectedChannelName}`] ?? []
+  const selectedRawPower = result?.spectrum.raw_power_by_channel?.[selectedChannelName] ?? []
+  const selectedFilteredPower = result?.spectrum.filtered_power_by_channel?.[selectedChannelName] ?? []
+  const selectedChannelDataAvailable = selectedRawTrace.length > 0
+    && selectedFilteredTrace.length > 0
+    && selectedRawPower.length > 0
+    && selectedFilteredPower.length > 0
+  const selectedMixingWeights = result?.mixing_matrix[selectedChannelIndex] ?? []
+  const referenceMeans = result?.mixing_matrix[0]?.map((_, sourceIndex) => (
+    result.mixing_matrix.reduce((sum, row) => sum + (row[sourceIndex] ?? 0), 0) / result.mixing_matrix.length
+  )) ?? []
+  const selectedEffectiveWeights = selectedMixingWeights.map((weight, sourceIndex) => (
+    recipe.preprocessing.reference === 'average' ? weight - (referenceMeans[sourceIndex] ?? 0) : weight
+  ))
+  const sourceContributions = selectedEffectiveWeights.map((weight, sourceIndex) => (
+    Math.abs(weight * (result?.recipe.simulation.sources[sourceIndex]?.amplitude_uv ?? 0))
+  ))
+  const dominantSourceIndex = sourceContributions.length
+    ? sourceContributions.indexOf(Math.max(...sourceContributions))
+    : -1
+  const dominantSource = dominantSourceIndex >= 0 ? result?.recipe.simulation.sources[dominantSourceIndex] : undefined
+  const dominantEffectiveWeight = dominantSourceIndex >= 0 ? selectedEffectiveWeights[dominantSourceIndex] : undefined
+  const dominantContribution = dominantSourceIndex >= 0 ? sourceContributions[dominantSourceIndex] : undefined
 
   useEffect(() => {
     const controller = new AbortController()
     checkHealth(controller.signal).then(setServiceReady).catch(() => setServiceReady(false))
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem('neurobridge-workspace-projects', JSON.stringify(projects))
+  }, [projects])
+
+  useEffect(() => {
+    window.localStorage.setItem('neurobridge-active-workspace-project', activeProjectId)
+  }, [activeProjectId])
+
+  const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
+
+  function createProject() {
+    const name = newProjectName.trim()
+    if (!name) return
+    const project = { id: crypto.randomUUID(), name }
+    setProjects((items) => [...items, project])
+    setActiveProjectId(project.id)
+    setNewProjectName('')
+  }
 
   function commit(next: ExperimentRecipe) {
     setPast((items) => [...items.slice(-30), cloneRecipe(recipe)])
@@ -139,7 +190,7 @@ function App() {
   function revealTruth() {
     setTruthVisible(true)
     setStep(5)
-    setView('Spectrum')
+    setView('Channel detail')
   }
 
   function exportRecipe() {
@@ -164,11 +215,6 @@ function App() {
     }
   }
 
-  const peakSummary = useMemo(() => {
-    if (!result) return 'Run the recipe to estimate peaks.'
-    return result.peak_frequencies_hz.length ? `${result.peak_frequencies_hz.join(' · ')} Hz` : 'No stable peak found'
-  }, [result])
-
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -179,30 +225,23 @@ function App() {
             <span>EEG LAB</span>
           </div>
         </div>
-        <div className="project-context">
-          <span className="eyebrow">Experiment project</span>
-          {editingTitle ? (
-            <input
-              className="title-input"
-              autoFocus
-              value={projectTitle}
-              onChange={(event) => setProjectTitle(event.target.value)}
-              onBlur={() => setEditingTitle(false)}
-              onKeyDown={(event) => event.key === 'Enter' && setEditingTitle(false)}
-              aria-label="Project name"
-            />
-          ) : (
-            <button className="project-name" onClick={() => setEditingTitle(true)}>{projectTitle} <ChevronDown size={13} /></button>
-          )}
-        </div>
-        <div className="header-actions">
-          <div className="lab-switcher" role="group" aria-label="Active guided lab">
-            <button className={activeLab === 'filter' ? 'active' : ''} onClick={() => setActiveLab('filter')}>01 · Sampling</button>
-            <button className={activeLab === 'ica' ? 'active' : ''} onClick={() => setActiveLab('ica')}>02 · ICA</button>
-            <button className={activeLab === 'connectivity' ? 'active' : ''} onClick={() => setActiveLab('connectivity')}>03 · Connectivity</button>
-            <button className={activeLab === 'source' ? 'active' : ''} onClick={() => setActiveLab('source')}>04 · Source</button>
-            <button className={activeLab === 'real' ? 'active' : ''} onClick={() => setActiveLab('real')}>05 · Real data</button>
+        <details className="project-menu">
+          <summary>
+            <FolderKanban size={17} />
+            <span><span className="eyebrow">Current project</span><strong>{activeProject?.name ?? 'Learning workspace'}</strong></span>
+            <ChevronDown size={14} />
+          </summary>
+          <div className="project-menu-panel">
+            <p>Projects keep your browser-based lab workspace separate. Imported recordings keep their own local FIF working-copy record.</p>
+            <span className="eyebrow">Open project</span>
+            <div className="project-list" role="list" aria-label="Open a project">
+              {projects.map((project) => <button key={project.id} role="listitem" className={project.id === activeProjectId ? 'active' : ''} onClick={() => setActiveProjectId(project.id)}>{project.name}</button>)}
+            </div>
+            <label className="project-create-field"><span>New project name</span><input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && createProject()} placeholder="e.g. Pilot 01" /></label>
+            <button className="project-create" onClick={createProject} disabled={!newProjectName.trim()}><Plus size={15} /> New project</button>
           </div>
+        </details>
+        <div className="header-actions">
           <span className={`service-state ${serviceReady === false ? 'offline' : ''}`}>
             <i />{serviceReady === null ? 'Checking service' : serviceReady ? 'Local service ready' : 'Service offline'}
           </span>
@@ -220,26 +259,9 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'ica' ? <IcaWorkbench /> : activeLab === 'connectivity' ? <ConnectivityWorkbench /> : activeLab === 'source' ? <SourceModelWorkbench /> : activeLab === 'real' ? <RealDataWorkbench /> : <>
+      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : <>
         <main className="workspace">
-        <nav className="lesson-rail" aria-label="Lesson progress">
-          <div className="rail-top"><BookOpen size={17} /><span>LAB 01</span></div>
-          <ol>
-            {STEPS.map((item, index) => {
-              const Icon = item.icon
-              return (
-                <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''}>
-                  <button onClick={() => setStep(index)} aria-current={index === step ? 'step' : undefined}>
-                    <span className="step-dot">{index < step ? <Check size={13} /> : <Icon size={15} />}</span>
-                    <small>0{index + 1}</small>
-                    <strong>{item.label}</strong>
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-          <div className="rail-bottom"><FlaskConical size={17} /><span>8 min</span></div>
-        </nav>
+        <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} onStep={setStep} />
 
         <aside className="control-panel">
           <div className="panel-heading">
@@ -266,6 +288,7 @@ function App() {
             </div>
             <RangeControl
               label="Sampling rate"
+              help="How many samples the system records per second. A lower rate can make fast signals appear at the wrong frequency."
               value={recipe.simulation.sampling_rate_hz}
               min={100}
               max={500}
@@ -274,7 +297,8 @@ function App() {
               onChange={(value) => updateSimulation('sampling_rate_hz', value)}
             />
             <RangeControl
-              label="Sensor noise"
+              label="EEG background"
+              help="Sets the RMS level of 1/f-like background activity plus a small white sensor-noise component. Higher values make the known oscillations harder to recover."
               value={recipe.simulation.noise_uv}
               min={0}
               max={20}
@@ -288,6 +312,7 @@ function App() {
             <div className="section-title"><span>Transform</span><small>REVERSIBLE</small></div>
             <RangeControl
               label="High-pass"
+              help="Reduces slow changes below this frequency. It can remove drift, but setting it too high can distort slow EEG activity."
               value={recipe.preprocessing.highpass_hz ?? 0}
               min={0.5}
               max={8}
@@ -297,6 +322,7 @@ function App() {
             />
             <RangeControl
               label="Low-pass"
+              help="Reduces fast changes above this frequency. It suppresses high-frequency noise and the planted 60 Hz signal in this lesson."
               value={recipe.preprocessing.lowpass_hz ?? 40}
               min={15}
               max={90}
@@ -305,7 +331,7 @@ function App() {
               onChange={(value) => updatePreprocessing('lowpass_hz', value)}
             />
             <div className="segmented-field">
-              <span>Reference</span>
+              <span className="control-label">Reference<ControlHint>Sets the common voltage reference for all channels. Average reference changes the data rank and can change the observed sensor signal.</ControlHint></span>
               <div role="group" aria-label="Reference method">
                 <button className={recipe.preprocessing.reference === 'average' ? 'selected' : ''} onClick={() => updatePreprocessing('reference', 'average')}>Average</button>
                 <button className={recipe.preprocessing.reference === 'none' ? 'selected' : ''} onClick={() => updatePreprocessing('reference', 'none')}>None</button>
@@ -320,11 +346,19 @@ function App() {
           </div>
         </aside>
 
-        <section className="canvas-panel">
+        <section className="canvas-panel sampling-canvas">
           <div className="canvas-toolbar">
             <div>
               <span className="eyebrow">Primary canvas</span>
-              <h2>{view === 'Signal' ? 'Sensor trace · EEG 01' : view}</h2>
+              <h2>{view === 'Channel detail' ? `${selectedChannelName} · signal, spectrum & weights` : view}</h2>
+              {view === 'Channel detail' && (
+                <div className="channel-switcher" role="group" aria-label="Simulated sensor channel">
+                  {Array.from({ length: channelCount }, (_, index) => {
+                    const label = `EEG ${String(index + 1).padStart(2, '0')}`
+                    return <button key={label} aria-pressed={index === selectedChannelIndex} className={index === selectedChannelIndex ? 'active' : ''} onClick={() => setSelectedChannel(index)}>{label}</button>
+                  })}
+                </div>
+              )}
             </div>
             <div className="view-tabs" role="tablist" aria-label="Visualization type">
               {VIEWS.map((item) => <button key={item} role="tab" aria-selected={item === view} className={item === view ? 'active' : ''} onClick={() => setView(item)}>{item}</button>)}
@@ -362,29 +396,55 @@ function App() {
                 <button className="primary-button" onClick={execute}><Play size={15} fill="currentColor" /> Run default recipe</button>
               </div>
             )}
-            {result && request.status !== 'loading' && view === 'Signal' && (
-              <LineChart
-                x={result.traces.x}
-                series={Object.entries(result.traces.series).map(([label, values], index) => ({ label, values, color: index ? '#087f83' : '#a8aaa5', dashed: !index }))}
-                xLabel="Time (s)"
-                yLabel="Amplitude (µV)"
-                ariaLabel="Raw and filtered EEG channel 1 time series"
-              />
+            {result && request.status !== 'loading' && view === 'Channel detail' && selectedChannelDataAvailable && (
+              <div className="channel-detail">
+                <section className="channel-plot signal-plot">
+                  <div className="plot-heading">
+                    <span><b>01</b><span><strong>Signal</strong><small>Voltage over time</small></span></span>
+                    <small>Raw mix → reference → 1–40 Hz filter</small>
+                  </div>
+                  <LineChart
+                    x={result.traces.x}
+                    series={[
+                      { label: `Raw · ${selectedChannelName}`, values: selectedRawTrace, color: '#a8aaa5', dashed: true },
+                      { label: `Processed · ${selectedChannelName}`, values: selectedFilteredTrace, color: '#087f83' },
+                    ]}
+                    xLabel="Time (s)"
+                    yLabel="Amplitude (µV)"
+                    ariaLabel={`Raw and processed ${selectedChannelName} time series`}
+                    height={220}
+                  />
+                </section>
+                <section className="channel-plot spectrum-plot">
+                  <div className="plot-heading">
+                    <span><b>02</b><span><strong>Spectrum</strong><small>Power at each frequency</small></span></span>
+                    <small>Welch PSD · this channel only</small>
+                  </div>
+                  <LineChart
+                    x={result.spectrum.frequency_hz}
+                    series={[
+                      { label: `Raw PSD · ${selectedChannelName}`, values: selectedRawPower, color: '#a8aaa5', dashed: true },
+                      { label: `Processed PSD · ${selectedChannelName}`, values: selectedFilteredPower, color: '#087f83' },
+                    ]}
+                    xDomain={[0, Math.min(80, result.recipe.simulation.sampling_rate_hz / 2)]}
+                    xLabel="Frequency (Hz)"
+                    yLabel="Power (log µV²/Hz)"
+                    ariaLabel={`Raw and processed ${selectedChannelName} Welch power spectral density`}
+                    logY
+                    markers={truthVisible ? result.truth_peaks_hz : []}
+                    height={220}
+                  />
+                </section>
+              </div>
             )}
-            {result && request.status !== 'loading' && view === 'Spectrum' && (
-              <LineChart
-                x={result.spectrum.frequency_hz}
-                series={[
-                  { label: 'Raw PSD', values: result.spectrum.raw_power, color: '#a8aaa5', dashed: true },
-                  { label: 'Filtered PSD', values: result.spectrum.filtered_power, color: '#087f83' },
-                ]}
-                xDomain={[0, Math.min(80, result.recipe.simulation.sampling_rate_hz / 2)]}
-                xLabel="Frequency (Hz)"
-                yLabel="Power (log µV²/Hz)"
-                ariaLabel="Raw and filtered Welch power spectral density"
-                logY
-                markers={truthVisible ? result.truth_peaks_hz : []}
-              />
+            {result && request.status !== 'loading' && view === 'Channel detail' && !selectedChannelDataAvailable && (
+              <div className="empty-stage stale-result-stage" role="status">
+                <AlertTriangle size={30} />
+                <span className="eyebrow">Incomplete run result</span>
+                <h3>{selectedChannelName} signal or spectrum is missing.</h3>
+                <p>Restart the local service, then run the recipe again to generate channel-matched signal and spectrum data.</p>
+                <button className="quiet-button" onClick={execute}>Run again</button>
+              </div>
             )}
             {result && request.status !== 'loading' && view === 'Filter response' && (
               <LineChart
@@ -396,32 +456,53 @@ function App() {
                 ariaLabel="Actual digital filter response in decibels"
               />
             )}
-            {result && request.status !== 'loading' && view === 'Mixing' && (
-              <div className="mixing-stage">
-                <div>
-                  <span className="eyebrow">Explicit linear mixture</span>
-                  <h3>Every sensor sees more than one source.</h3>
-                  <p>Sign and intensity encode how each latent source contributes to each channel. This is why a sensor trace is not a direct view of one neural generator.</p>
-                </div>
-                <MixingMatrix values={result.mixing_matrix} />
-              </div>
-            )}
           </div>
 
-          <div className="canvas-readout">
-            <div><small>ESTIMATED PEAKS</small><strong>{peakSummary}</strong></div>
-            <div><small>RETAINED VARIANCE</small><strong>{result ? `${result.retained_variance_pct}%` : '—'}</strong></div>
-            <div><small>ANALYSIS SPACE</small><strong>Sensor · µV</strong></div>
-            <div><small>REFERENCE</small><strong>{recipe.preprocessing.reference === 'average' ? 'Average' : 'None'}</strong></div>
+          <div className="channel-weight-readout" aria-label={`${selectedChannelName} source weights`}>
+            <div className="weight-intro">
+              <span className="eyebrow">03 · Source weights</span>
+              <strong>{selectedChannelName}</strong>
+              <small>Raw mix / {recipe.preprocessing.reference === 'average' ? 'after average reference' : 'no reference change'}</small>
+            </div>
+            {recipe.simulation.sources.map((source, sourceIndex) => (
+              <div className="weight-source" key={source.id}>
+                <span><i className={`source-dot ${source.id}`} />{source.label}</span>
+                <strong>{source.frequency_hz} Hz</strong>
+                <dl>
+                  <div><dt>Raw</dt><dd>{formatWeight(selectedMixingWeights[sourceIndex])}</dd></div>
+                  <div><dt>Processed</dt><dd>{formatWeight(selectedEffectiveWeights[sourceIndex])}</dd></div>
+                </dl>
+              </div>
+            ))}
+            <p className="weight-note">Weights describe the three known oscillations. The 1/f background is added afterward. A negative sign means phase inversion, not a bad channel.</p>
           </div>
         </section>
 
         <aside className="inspector-panel">
           <section className="inspector-lead">
             <span className="eyebrow">Interpretation</span>
-            <h2>{truthVisible ? 'Truth, with limits.' : 'Reason before reveal.'}</h2>
-            <p>{truthVisible ? 'Compare what was planted with what the estimator retained. A match here validates this controlled recipe, not every EEG analysis.' : 'Inspect the trace, spectrum, and filter response. The source labels remain visible, but the numeric answer stays covered.'}</p>
+            <h2>{result ? `Why ${selectedChannelName} looks this way` : 'Reason before reveal.'}</h2>
+            <p>{result && dominantSource
+              ? `${dominantSource.label} (${dominantSource.frequency_hz} Hz) has the largest expected contribution to the processed trace: about ${dominantContribution?.toFixed(1)} µV before temporal filtering.`
+              : 'Run the recipe, then compare one channel’s signal, spectrum, and source weights together.'}</p>
           </section>
+
+          {result && dominantSource && (
+            <section className="channel-explanation">
+              <div>
+                <strong>What the weight means</strong>
+                <p>The processed weight for {dominantSource.label.toLowerCase()} is {formatWeight(dominantEffectiveWeight)}. Larger magnitude means stronger influence; a negative value flips the waveform’s phase.</p>
+              </div>
+              <div>
+                <strong>Why Raw and Processed differ</strong>
+                <p>Raw uses the original mix. Processed first applies {recipe.preprocessing.reference === 'average' ? 'average reference, which changes every channel’s effective weights, and then' : 'no re-reference, then applies'} the temporal filters.</p>
+              </div>
+              <div>
+                <strong>Why it may look too regular</strong>
+                <p>This teaching signal now includes 1/f-like background activity and a slowly changing, burst-like alpha envelope. It is more EEG-like, but still simpler than a recording and omits eye, muscle, movement, and electrode artifacts.</p>
+              </div>
+            </section>
+          )}
 
           {result?.warnings.map((warning) => (
             <section className={`warning-card ${warning.severity}`} key={warning.code}>
@@ -442,7 +523,6 @@ function App() {
                   {result.truth_peaks_hz.map((peak) => <span key={peak}><strong>{peak}</strong> Hz</span>)}
                 </div>
                 <p>The 10 Hz alpha source sits inside the passband. The 60 Hz source is strongly attenuated by the 40 Hz low-pass. At 100 Hz sampling, 60 Hz folds to 40 Hz before filtering.</p>
-                <button className="text-button" onClick={() => setView('Spectrum')}>Inspect against spectrum <ArrowRight size={14} /></button>
               </div>
             ) : (
               <div className="truth-covered">
@@ -451,20 +531,6 @@ function App() {
               </div>
             )}
           </section>
-
-          {result && (
-            <section className="provenance-block">
-              <div className="section-title"><span>Provenance</span><small>IMMUTABLE RUN</small></div>
-              <dl>
-                <div><dt>Recipe</dt><dd>{result.provenance.recipe_hash}</dd></div>
-                <div><dt>Seed</dt><dd>{result.provenance.seed}</dd></div>
-                <div><dt>Sampling</dt><dd>{result.provenance.sampling_rate_hz} Hz</dd></div>
-                <div><dt>Rank</dt><dd>{result.provenance.rank} / {result.recipe.simulation.channel_count}</dd></div>
-                <div><dt>Engine</dt><dd>v{result.provenance.engine_version}</dd></div>
-                <div><dt>Units</dt><dd>V → µV</dd></div>
-              </dl>
-            </section>
-          )}
 
           <div className="nonclinical"><AlertTriangle size={15} /><span>Educational and research use only.<br />Not for clinical diagnosis.</span></div>
         </aside>
@@ -506,11 +572,11 @@ interface RangeControlProps {
   onChange: (value: number) => void
 }
 
-function RangeControl({ label, value, min, max, step, unit, onChange }: RangeControlProps) {
+function RangeControl({ label, help, value, min, max, step, unit, onChange }: RangeControlProps & { help: string }) {
   const progress = ((value - min) / (max - min)) * 100
   return (
     <label className="range-control">
-      <span>{label}<output>{value} {unit}</output></span>
+      <span><span className="control-label">{label}<ControlHint>{help}</ControlHint></span><output>{value} {unit}</output></span>
       <input
         type="range"
         aria-label={label}

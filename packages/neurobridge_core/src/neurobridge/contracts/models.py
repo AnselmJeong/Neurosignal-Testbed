@@ -88,6 +88,8 @@ class SpectrumData(ContractModel):
     frequency_hz: list[float]
     raw_power: list[float]
     filtered_power: list[float]
+    raw_power_by_channel: dict[str, list[float]]
+    filtered_power_by_channel: dict[str, list[float]]
     unit: str
 
 

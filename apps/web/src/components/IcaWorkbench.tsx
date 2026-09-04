@@ -1,8 +1,6 @@
 import {
   Activity,
   AlertTriangle,
-  Brain,
-  Check,
   CircleHelp,
   Eye,
   EyeOff,
@@ -26,6 +24,8 @@ import {
   type IcaRecipe,
 } from '../types'
 import { LineChart } from './Charts'
+import { ControlHint } from './ControlHint'
+import { LabNavigator, type LabId } from './LabNavigator'
 import { ScalpTopography } from './ScalpTopography'
 
 const ICA_STEPS = [
@@ -44,7 +44,7 @@ type PipelineState =
   | { status: 'applying'; stage: string; progress: number }
   | { status: 'error'; message: string }
 
-export function IcaWorkbench() {
+export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onLabChange: (lab: LabId) => void }) {
   const [recipe, setRecipe] = useState<IcaRecipe>(() => structuredClone(defaultIcaRecipe))
   const [fit, setFit] = useState<IcaFitResult | null>(null)
   const [applied, setApplied] = useState<IcaApplyResult | null>(null)
@@ -146,24 +146,7 @@ export function IcaWorkbench() {
   return (
     <>
       <main className="workspace ica-workspace">
-        <nav className="lesson-rail" aria-label="ICA lesson progress">
-          <div className="rail-top"><Brain size={17} /><span>LAB 02</span></div>
-          <ol>
-            {ICA_STEPS.map((item, index) => {
-              const Icon = item.icon
-              return (
-                <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''}>
-                  <button onClick={() => setStep(index)} aria-current={index === step ? 'step' : undefined}>
-                    <span className="step-dot">{index < step ? <Check size={13} /> : <Icon size={15} />}</span>
-                    <small>0{index + 1}</small>
-                    <strong>{item.label}</strong>
-                  </button>
-                </li>
-              )
-            })}
-          </ol>
-          <div className="rail-bottom"><FlaskConical size={17} /><span>12 min</span></div>
-        </nav>
+        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={ICA_STEPS} step={step} onStep={setStep} />
 
         <aside className="control-panel ica-controls">
           <div className="panel-heading">
@@ -180,8 +163,8 @@ export function IcaWorkbench() {
 
           <section className="control-section">
             <div className="section-title"><span>Artifact recipe</span><small>KNOWN INPUT</small></div>
-            <IcaRange label="Blink amplitude" value={recipe.blink_amplitude_uv} min={0} max={160} step={10} unit="µV" onChange={(value) => updateRecipe('blink_amplitude_uv', value)} />
-            <IcaRange label="Sensor noise" value={recipe.sensor_noise_uv} min={0} max={4} step={0.25} unit="µV" onChange={(value) => updateRecipe('sensor_noise_uv', value)} />
+            <IcaRange label="Blink amplitude" help="The size of the planted eye-blink artifact. More amplitude makes the blink easier to spot, but it can dominate the decomposition." value={recipe.blink_amplitude_uv} min={0} max={160} step={10} unit="µV" onChange={(value) => updateRecipe('blink_amplitude_uv', value)} />
+            <IcaRange label="Sensor noise" help="Random sensor-level voltage. More noise makes component patterns and artifact detection less reliable." value={recipe.sensor_noise_uv} min={0} max={4} step={0.25} unit="µV" onChange={(value) => updateRecipe('sensor_noise_uv', value)} />
             <div className="preset-row">
               <button className={recipe.blink_amplitude_uv === 90 ? 'selected' : ''} onClick={() => updateRecipe('blink_amplitude_uv', 90)}>Planted blink</button>
               <button className={recipe.blink_amplitude_uv === 0 ? 'selected' : ''} onClick={() => updateRecipe('blink_amplitude_uv', 0)}>No-artifact control</button>
@@ -193,20 +176,20 @@ export function IcaWorkbench() {
             <div className="parameter-row"><span>High-pass</span><strong>{recipe.fit_highpass_hz.toFixed(1)} Hz</strong></div>
             <div className="parameter-row"><span>Low-pass</span><strong>{recipe.fit_lowpass_hz.toFixed(0)} Hz</strong></div>
             <div className="segmented-field stack">
-              <span>Algorithm</span>
+              <span className="control-label">Algorithm<ControlHint>Chooses the ICA optimization method. Both methods estimate statistically independent components, but can converge to different decompositions.</ControlHint></span>
               <div role="group" aria-label="ICA algorithm">
                 <button className={recipe.algorithm === 'infomax' ? 'selected' : ''} onClick={() => updateRecipe('algorithm', 'infomax')}>Ext. Infomax</button>
                 <button className={recipe.algorithm === 'fastica' ? 'selected' : ''} onClick={() => updateRecipe('algorithm', 'fastica')}>FastICA</button>
               </div>
             </div>
             <div className="segmented-field stack">
-              <span>Reference</span>
+              <span className="control-label">Reference<ControlHint>Sets the voltage reference before ICA. Average reference reduces the data rank by one and affects how many components can be fit.</ControlHint></span>
               <div role="group" aria-label="ICA reference">
                 <button className={recipe.reference === 'average' ? 'selected' : ''} onClick={() => updateRecipe('reference', 'average')}>Average</button>
                 <button className={recipe.reference === 'none' ? 'selected' : ''} onClick={() => updateRecipe('reference', 'none')}>None</button>
               </div>
             </div>
-            <IcaRange label="Components" value={recipe.component_count} min={3} max={7} step={1} unit="ICs" onChange={(value) => updateRecipe('component_count', value)} />
+            <IcaRange label="Components" help="How many independent components ICA attempts to estimate. It cannot exceed the data rank." value={recipe.component_count} min={3} max={7} step={1} unit="ICs" onChange={(value) => updateRecipe('component_count', value)} />
           </section>
 
           <button className="primary-button fit-button" onClick={handleFit} disabled={isBusy}>
@@ -392,11 +375,11 @@ export function IcaWorkbench() {
   )
 }
 
-function IcaRange({ label, value, min, max, step, unit, onChange }: { label: string; value: number; min: number; max: number; step: number; unit: string; onChange: (value: number) => void }) {
+function IcaRange({ label, help, value, min, max, step, unit, onChange }: { label: string; help: string; value: number; min: number; max: number; step: number; unit: string; onChange: (value: number) => void }) {
   const progress = ((value - min) / (max - min)) * 100
   return (
     <label className="range-control">
-      <span>{label}<output>{value} {unit}</output></span>
+      <span><span className="control-label">{label}<ControlHint>{help}</ControlHint></span><output>{value} {unit}</output></span>
       <input type="range" aria-label={label} min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} style={{ '--range-progress': `${progress}%` } as React.CSSProperties} />
       <small><span>{min}</span><span>{max}</span></small>
     </label>

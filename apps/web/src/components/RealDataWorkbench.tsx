@@ -1,11 +1,9 @@
 import {
   AlertTriangle,
-  Check,
   ClipboardCheck,
   Download,
   FileOutput,
   FileSearch,
-  FlaskConical,
   FolderInput,
   HardDrive,
   RefreshCw,
@@ -22,6 +20,7 @@ import {
   reportDownloadUrl,
 } from '../lib/api'
 import type { EegbciLessonStatus, RealDataImportResult, RecordingInspection } from '../types'
+import { LabNavigator, type LabId } from './LabNavigator'
 
 const STEPS = [
   { label: 'Resolve', icon: FolderInput },
@@ -32,7 +31,7 @@ const STEPS = [
   { label: 'Review', icon: ShieldCheck },
 ] as const
 
-export function RealDataWorkbench() {
+export function RealDataWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onLabChange: (lab: LabId) => void }) {
   const [sourcePath, setSourcePath] = useState('')
   const [projectName, setProjectName] = useState('Local EEG review')
   const [inspection, setInspection] = useState<RecordingInspection | null>(null)
@@ -83,7 +82,7 @@ export function RealDataWorkbench() {
 
   return <>
     <main className="workspace real-data-workspace">
-      <nav className="lesson-rail" aria-label="Real data lesson progress"><div className="rail-top"><HardDrive size={17} /><span>LAB 05</span></div><ol>{STEPS.map((item, index) => { const Icon = item.icon; return <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''}><button onClick={() => setStep(index)} aria-current={index === step ? 'step' : undefined}><span className="step-dot">{index < step ? <Check size={13} /> : <Icon size={15} />}</span><small>0{index + 1}</small><strong>{item.label}</strong></button></li> })}</ol><div className="rail-bottom"><FlaskConical size={17} /><span>12 min</span></div></nav>
+      <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={STEPS} step={step} onStep={setStep} />
       <aside className="control-panel real-data-controls">
         <div className="panel-heading"><span className="eyebrow">Real data · local-only</span><h1>Inspect first.<br />Copy second.</h1><p>The selected original is opened read-only. Analysis and reports use a separate FIF working copy.</p></div>
         <section className="control-section"><div className="section-title"><span>Guided resolver</span><small>FIF · EDF · BDF · VHDR · SET</small></div><label className="path-field"><span>Local recording path</span><input value={sourcePath} onChange={(event) => { setSourcePath(event.target.value); setInspection(null); setResult(null); setStep(0) }} placeholder="/Volumes/Data/recording_raw.fif" /></label><label className="path-field"><span>Project name</span><input value={projectName} onChange={(event) => setProjectName(event.target.value)} /></label><button className="quiet-button full-button" onClick={inspect} disabled={!sourcePath.trim() || busy !== null}><FileSearch size={15} /> {busy === 'inspect' ? 'Inspecting' : 'Inspect file'}</button><button className="primary-button fit-button" onClick={importRecording} disabled={!sourcePath.trim() || busy !== null}><FolderInput size={16} /> {busy === 'import' ? 'Creating working copy' : 'Create local FIF copy'}</button></section>
