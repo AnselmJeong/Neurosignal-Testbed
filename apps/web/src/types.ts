@@ -165,6 +165,22 @@ export interface IcaFitResult {
   provenance: ExperimentResult['provenance']
 }
 
+export interface IcaSimulationResult {
+  run_id: string
+  state: 'completed' | 'failed'
+  recipe: IcaRecipe
+  sensor_trace: {
+    x: number[]
+    series: Record<string, number[]>
+    x_unit: string
+    y_unit: string
+  }
+  source_labels: string[]
+  channel_names: string[]
+  rank: number
+  provenance: ExperimentResult['provenance']
+}
+
 export interface IcaApplyResult {
   run_id: string
   state: 'completed' | 'failed'
@@ -451,4 +467,101 @@ export interface ReportExportResult {
   report_name: string
   download_path: string
   generated_at: string
+}
+
+export interface RealDataQeegRequest {
+  schema_version: '1.0'
+  highpass_hz: number
+  lowpass_hz: number
+  notch_hz: number | null
+  reference: 'average' | 'none'
+  duration_limit_s: number
+  epoch_duration_s: number
+  reject_by_annotation: boolean
+  ica_enabled: boolean
+  ica_method: 'fastica' | 'infomax'
+  ica_component_count: number
+  ica_exclude_components: number[]
+  connectivity_band: 'theta' | 'alpha' | 'beta'
+  max_connectivity_channels: number
+}
+
+export const defaultRealDataQeegRequest: RealDataQeegRequest = {
+  schema_version: '1.0',
+  highpass_hz: 1,
+  lowpass_hz: 40,
+  notch_hz: null,
+  reference: 'average',
+  duration_limit_s: 120,
+  epoch_duration_s: 2,
+  reject_by_annotation: true,
+  ica_enabled: false,
+  ica_method: 'fastica',
+  ica_component_count: 12,
+  ica_exclude_components: [],
+  connectivity_band: 'alpha',
+  max_connectivity_channels: 12,
+}
+
+export interface QeegBandPower {
+  name: 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma'
+  low_hz: number
+  high_hz: number
+  mean_absolute_power_uv2: number
+  mean_relative_power: number
+  absolute_power_by_channel_uv2: number[]
+  relative_power_by_channel: number[]
+}
+
+export interface QeegConnectivityMatrix {
+  method: 'coh' | 'plv'
+  band: 'theta' | 'alpha' | 'beta'
+  band_hz: [number, number]
+  channel_names: string[]
+  values: number[][]
+  epoch_count: number
+}
+
+export interface RealDataQeegResult {
+  run_id: string
+  state: 'completed' | 'partial'
+  request: RealDataQeegRequest
+  channel_names: string[]
+  sampling_rate_hz: number
+  analyzed_duration_s: number
+  trace: { x: number[]; series: Record<string, number[]>; x_unit: string; y_unit: string }
+  frequency_hz: number[]
+  mean_psd_uv2_hz: number[]
+  psd_by_channel_uv2_hz: Record<string, number[]>
+  band_powers: QeegBandPower[]
+  theta_beta_ratio_by_channel: Record<string, number | null>
+  mean_theta_beta_ratio: number | null
+  topomaps: {
+    band: QeegBandPower['name']
+    channel_names: string[]
+    relative_power: number[]
+    sensor_positions: [number, number][]
+    available: boolean
+  }[]
+  coherence: QeegConnectivityMatrix
+  plv: QeegConnectivityMatrix
+  ica_components: {
+    index: number
+    explained_variance_pct: number
+    topography: number[]
+    peak_frequency_hz: number | null
+  }[]
+  ica_excluded_components: number[]
+  cleaned_fif_path: string
+  result_json_path: string
+  warnings: WarningMessage[]
+  provenance: {
+    created_at: string
+    mne_version: string
+    mne_connectivity_version: string
+    source_working_copy: string
+    source_sha256: string
+    analyzed_duration_s: number
+    recipe_hash: string
+  }
 }

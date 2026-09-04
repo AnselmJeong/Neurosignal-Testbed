@@ -6,6 +6,7 @@ import type {
   IcaApplyResult,
   IcaFitResult,
   IcaRecipe,
+  IcaSimulationResult,
   SourceModelRecipe,
   SourceModelResult,
   EegbciLessonStatus,
@@ -14,6 +15,8 @@ import type {
   RealDataImportResult,
   RecordingInspection,
   ReportExportResult,
+  RealDataQeegRequest,
+  RealDataQeegResult,
 } from '../types'
 
 const apiBase = import.meta.env.VITE_API_URL ?? '/api'
@@ -54,6 +57,10 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 
 export function fitIca(recipe: IcaRecipe): Promise<IcaFitResult> {
   return postJson<IcaFitResult>('/ica/fit', recipe)
+}
+
+export function simulateIca(recipe: IcaRecipe): Promise<IcaSimulationResult> {
+  return postJson<IcaSimulationResult>('/ica/simulate', recipe)
 }
 
 export function applyIca(
@@ -98,6 +105,16 @@ export function importCachedEegbci(request: EegbciImportRequest): Promise<RealDa
 
 export function exportQcReport(projectId: string): Promise<ReportExportResult> {
   return postJson<ReportExportResult>(`/reports?project_id=${encodeURIComponent(projectId)}`, {})
+}
+
+export function runRealDataQeeg(
+  projectId: string,
+  request: RealDataQeegRequest,
+): Promise<RealDataQeegResult> {
+  return postJson<RealDataQeegResult>(
+    `/real-data/projects/${encodeURIComponent(projectId)}/qeeg`,
+    request,
+  )
 }
 
 export function reportDownloadUrl(path: string): string {

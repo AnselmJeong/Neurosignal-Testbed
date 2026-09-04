@@ -1,5 +1,6 @@
 """Non-destructive local EEG import, QC, project recovery, and report export."""
 
+from .qeeg import run_qeeg_analysis
 from .service import (
     default_project_root,
     eegbci_lesson_status,
@@ -18,4 +19,5 @@ __all__ = [
     "import_local_recording",
     "inspect_local_recording",
     "recover_project",
+    "run_qeeg_analysis",
 ]

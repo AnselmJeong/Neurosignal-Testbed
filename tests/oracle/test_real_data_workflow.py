@@ -4,13 +4,14 @@ from pathlib import Path
 
 import mne
 import numpy as np
-from neurobridge.contracts.models import LocalImportRequest
+from neurobridge.contracts.models import LocalImportRequest, RealDataQeegRequest
 from neurobridge.real_data import (
     default_project_root,
     eegbci_lesson_status,
     export_project_report,
     import_local_recording,
     recover_project,
+    run_qeeg_analysis,
 )
 
 
@@ -88,3 +89,69 @@ def test_eegbci_lesson_reports_missing_cache_without_downloading(tmp_path: Path)
     assert status.state == "not_cached"
     assert status.available_runs == []
     assert "never started automatically" in status.message
+
+
+def test_qeeg_run_writes_derivatives_and_preserves_working_copy(tmp_path: Path) -> None:
+    source = tmp_path / "qeeg_source_raw.fif"
+    names = ["Fp1", "Fp2", "F3", "F4", "C3", "C4", "O1", "O2"]
+    info = mne.create_info(names, 100, "eeg")
+    samples = np.arange(2000) / 100
+    data = (
+        np.asarray(
+            [
+                (8 + index) * np.sin(2 * np.pi * 6 * samples + index / 5)
+                + (4 + index / 2) * np.sin(2 * np.pi * 18 * samples + index / 7)
+                for index in range(len(names))
+            ]
+        )
+        * 1e-6
+    )
+    raw = mne.io.RawArray(data, info, verbose=False)
+    raw.set_montage("standard_1020")
+    raw.save(source, overwrite=True, verbose=False)
+    project_root = tmp_path / "projects"
+    imported = import_local_recording(LocalImportRequest(source_path=str(source)), project_root)
+    project_dir = project_root / imported.project.project_id
+    working_copy = project_dir / "recording_raw.fif"
+    before_hash = hashlib.sha256(working_copy.read_bytes()).hexdigest()
+
+    result = run_qeeg_analysis(
+        imported.project.project_id,
+        RealDataQeegRequest(
+            duration_limit_s=16,
+            epoch_duration_s=2,
+            lowpass_hz=40,
+            connectivity_band="theta",
+            ica_enabled=False,
+        ),
+        project_root,
+    )
+
+    assert hashlib.sha256(working_copy.read_bytes()).hexdigest() == before_hash
+    assert Path(result.cleaned_fif_path).is_file()
+    assert Path(result.result_json_path).is_file()
+    assert len(result.band_powers) == 5
+    assert result.mean_theta_beta_ratio is not None
+    assert result.mean_theta_beta_ratio > 1
+    assert result.coherence.band == "theta"
+    assert result.plv.epoch_count >= 2
+    assert len(result.coherence.values) == len(names)
+    assert all(topomap.available for topomap in result.topomaps)
+    assert any(warning.code == "qeeg_descriptive_not_normative" for warning in result.warnings)
+
+    ica_result = run_qeeg_analysis(
+        imported.project.project_id,
+        RealDataQeegRequest(
+            duration_limit_s=12,
+            epoch_duration_s=2,
+            lowpass_hz=40,
+            ica_enabled=True,
+            ica_component_count=3,
+            ica_exclude_components=[0],
+        ),
+        project_root,
+    )
+    assert len(ica_result.ica_components) == 3
+    assert ica_result.ica_excluded_components == [0]
+    assert ica_result.run_id != result.run_id
+    assert hashlib.sha256(working_copy.read_bytes()).hexdigest() == before_hash

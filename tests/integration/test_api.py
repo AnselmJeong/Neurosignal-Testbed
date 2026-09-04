@@ -37,6 +37,16 @@ def test_run_round_trip() -> None:
 
 
 def test_ica_fit_and_manual_apply_contract() -> None:
+    simulation_response = client.post("/ica/simulate", json={})
+    assert simulation_response.status_code == 200
+    simulation = simulation_response.json()
+    assert simulation["state"] == "completed"
+    assert simulation["rank"] == 7
+    assert simulation["channel_names"] == ["Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2"]
+    assert list(simulation["sensor_trace"]["series"]) == [
+        "Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2",
+    ]
+
     fit_response = client.post("/ica/fit", json={})
     assert fit_response.status_code == 200
     fit = fit_response.json()
@@ -55,6 +65,11 @@ def test_ica_fit_and_manual_apply_contract() -> None:
     )
     assert apply_response.status_code == 200
     result = apply_response.json()
+    assert list(result["before_after_trace"]["series"]) == [
+        f"{state} · {channel}"
+        for channel in ["Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2"]
+        for state in ["Before", "After"]
+    ]
     assert result["artifact_attenuation_db"] > 30
     assert result["neural_distortion_pct"] < 20
 

@@ -25,12 +25,12 @@ import { ControlHint } from './ControlHint'
 import { LabNavigator, type LabId } from './LabNavigator'
 
 const STEPS = [
-  { label: 'Predict', icon: CircleHelp },
-  { label: 'Project', icon: Waves },
-  { label: 'Reconstruct', icon: BrainCircuit },
-  { label: 'Extract', icon: MapPinned },
-  { label: 'Compare', icon: ScanLine },
-  { label: 'Reveal', icon: Eye },
+  { label: 'Predict', description: 'State where activity and leakage may appear.', icon: CircleHelp },
+  { label: 'Project', description: 'Mix known ROI signals at the sensors.', icon: Waves },
+  { label: 'Reconstruct', description: 'Estimate sources with minimum norm.', icon: BrainCircuit },
+  { label: 'Extract', description: 'Summarize activity within each ROI.', icon: MapPinned },
+  { label: 'Compare', description: 'Inspect recovery together with leakage.', icon: ScanLine },
+  { label: 'Reveal', description: 'Compare estimates with planted locations.', icon: Eye },
 ] as const
 
 const VIEWS = ['Sensor', 'ROI traces', 'Forward maps', 'Leakage'] as const
@@ -99,7 +99,7 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
   return (
     <>
       <main className="workspace source-workspace">
-        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={STEPS} step={step} onStep={setStep} />
+        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={STEPS} step={step} />
 
         <aside className="control-panel source-controls">
           <div className="panel-heading">

@@ -1,6 +1,6 @@
 import pytest
 from neurobridge.contracts.models import IcaApplyRequest, IcaRecipe
-from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench
+from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench, simulate_ica_input
 
 
 @pytest.fixture(scope="module")
@@ -16,6 +16,14 @@ def apply_request(fit, exclusions: list[int]) -> IcaApplyRequest:
         target_reference=fit.recipe.reference,
         target_channel_names=fit.compatibility.channel_names,
     )
+
+
+def test_simulation_is_available_before_ica_fit() -> None:
+    result = simulate_ica_input(IcaRecipe())
+    assert result.state == "completed"
+    assert result.rank == 7
+    assert result.source_labels == ["alpha", "theta", "beta", "blink"]
+    assert list(result.sensor_trace.series) == ["Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2"]
 
 
 def test_rank_aware_ica_recovers_planted_blink(planted_fit) -> None:
@@ -42,6 +50,11 @@ def test_manual_blink_exclusion_attenuates_artifact_with_bounded_distortion(
         apply_request(planted_fit, [planted_fit.blink_component_index])
     )
     assert result.compatibility_verified is True
+    assert list(result.before_after_trace.series) == [
+        f"{state} · {channel}"
+        for channel in ["Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2"]
+        for state in ["Before", "After"]
+    ]
     assert result.artifact_attenuation_db > 30
     assert result.neural_distortion_pct < 20
     assert result.neural_retention_pct > 80

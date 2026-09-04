@@ -1,6 +1,6 @@
 # Neurosignal Testbed
 
-## NeuroSignal — Phase 1–5 web vertical slices
+## NeuroSignal — Phase 1–6 web vertical slices
 
 The repository includes the first five working slices of the product described in
 [`PRD.md`](PRD.md) and [`implementation_plan.md`](implementation_plan.md): a local-first,
@@ -12,10 +12,11 @@ reversible reference/filter recipe, and lets the learner compare the raw trace, 
 Welch PSD, actual digital filter response, and explicit mixing matrix before revealing truth.
 Every result records its seed, units, rank, software versions, and recipe hash.
 
-The ICA lesson creates three neural sources plus a planted blink, fits FastICA or extended
-Infomax on a dedicated 1–100 Hz copy, exposes the component trace, PSD, and scalp topography,
-and keeps ICLabel strictly advisory. The learner must select exclusions manually before the app
-checks channel/reference compatibility and reports artifact attenuation plus neural distortion.
+The ICA lesson first creates three neural sources plus a planted blink and exposes the mixed
+sensor EEG for inspection. The learner then fits FastICA or extended Infomax using a dedicated
+1–100 Hz copy, reviews the component trace, PSD, and scalp topography, and treats ICLabel as
+strictly advisory. Exclusions remain manual; the app checks channel/reference compatibility and
+reports artifact attenuation plus neural distortion only after the learner applies a selection.
 The pinned default fixture recovers the blink above 0.95 source correlation while retaining more
 than 80% of the neural control signal.
 
@@ -41,6 +42,14 @@ working copy. It provides descriptive QC, project-manifest recovery/migration, a
 eyes-open/eyes-closed lesson path, and an `mne.Report` HTML export that records provenance and
 caveats without simulation-score language.
 
+The QEEG lab continues from any imported project without modifying that project's FIF working
+copy. Each run creates its own filtered/optionally ICA-cleaned FIF derivative and JSON record,
+then exposes Welch PSD, absolute and relative delta/theta/alpha/beta/gamma power, channel-wise
+theta/beta ratios, verified-position topomaps, and sensor-level coherence and PLV. ICA exclusions
+are manual and repeatable: a first fit reveals component summaries, and a later run applies only
+the component indices selected by the user. QEEG output is explicitly descriptive, has no
+normative-database comparison, and is not a clinical diagnosis.
+
 ### Run the app locally
 
 ```bash
@@ -62,7 +71,7 @@ server uses a strict port and exits instead of silently moving to another port w
 ### Verify
 
 ```bash
-uv run pytest
+uv run python -m pytest
 uv run ruff check .
 cd apps/web && npm test && npm run typecheck && npm run build
 ```

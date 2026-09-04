@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "highpass_hz": 1,
+  "lowpass_hz": 40,
+  "notch_hz": null,
+  "reference": "average",
+  "duration_limit_s": 120,
+  "epoch_duration_s": 2,
+  "reject_by_annotation": true,
+  "ica_enabled": false,
+  "ica_method": "fastica",
+  "ica_component_count": 12,
+  "ica_exclude_components": [],
+  "connectivity_band": "alpha",
+  "max_connectivity_channels": 12
+}

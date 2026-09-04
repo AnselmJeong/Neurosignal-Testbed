@@ -8,12 +8,14 @@ import {
   HardDrive,
   type LucideIcon,
   Waves,
+  ChartNoAxesCombined,
 } from 'lucide-react'
 
-export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real'
+export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg'
 
 export interface LabStep {
   label: string
+  description: string
   icon: LucideIcon
 }
 
@@ -38,14 +40,17 @@ const LABS: Record<LabId, { number: string; label: string; title: string; object
     number: '05', label: 'Real data', title: 'From recording to QC report',
     objective: 'Inspect a local recording safely, make a FIF working copy, and review descriptive QC.', minutes: '12 min', icon: HardDrive,
   },
+  qeeg: {
+    number: '06', label: 'QEEG', title: 'What does this recipe quantify?',
+    objective: 'Preprocess a real-data derivative, then compare spectra, band maps, coherence, and PLV.', minutes: '18 min', icon: ChartNoAxesCombined,
+  },
 }
 
-export function LabNavigator({ activeLab, onLabChange, steps, step, onStep }: {
+export function LabNavigator({ activeLab, onLabChange, steps, step }: {
   activeLab: LabId
   onLabChange: (lab: LabId) => void
   steps: readonly LabStep[]
   step: number
-  onStep: (step: number) => void
 }) {
   const lab = LABS[activeLab]
 
@@ -67,19 +72,28 @@ export function LabNavigator({ activeLab, onLabChange, steps, step, onStep }: {
 
       <section className="lesson-steps" aria-label={`${lab.label} lesson steps`}>
         <div className="lesson-intro">
-          <span className="eyebrow">Lab {lab.number} · learning objective</span>
+          <span className="eyebrow">Lab {lab.number} · learning goal</span>
           <h2>{lab.title}</h2>
           <p>{lab.objective}</p>
         </div>
-        <ol>
+        <div className="lesson-progress-heading">
+          <span>Lesson progress</span>
+          <small>Step {step + 1} of {steps.length}</small>
+        </div>
+        <ol aria-label={`${lab.label} lesson progress`}>
           {steps.map((item, index) => {
             const Icon = item.icon
+            const status = index === step ? 'Current step' : index < step ? 'Completed' : 'Upcoming'
             return (
-              <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''}>
-                <button onClick={() => onStep(index)} aria-current={index === step ? 'step' : undefined}>
+              <li key={item.label} className={index === step ? 'active' : index < step ? 'done' : ''} aria-current={index === step ? 'step' : undefined}>
+                <div className="lesson-step">
                   <span className="step-dot">{index < step ? <Check size={13} /> : <Icon size={14} />}</span>
-                  <span><small>0{index + 1}</small><strong>{item.label}</strong></span>
-                </button>
+                  <span className="step-copy">
+                    <small>0{index + 1} · {status}</small>
+                    <strong>{item.label}</strong>
+                    <p>{item.description}</p>
+                  </span>
+                </div>
               </li>
             )
           })}

@@ -16,16 +16,19 @@ from neurobridge.contracts.models import (
     IcaApplyResult,
     IcaFitResult,
     IcaRecipe,
+    IcaSimulationResult,
     LocalImportRequest,
     RealDataImportResult,
     RealDataProject,
+    RealDataQeegRequest,
+    RealDataQeegResult,
     RecordingInspection,
     ReportExportResult,
     SourceModelRecipe,
     SourceModelResult,
     WarningMessage,
 )
-from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench
+from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench, simulate_ica_input
 from neurobridge.module_registry import capability_manifest
 from neurobridge.preprocessing import validate_recipe
 from neurobridge.real_data import (
@@ -36,6 +39,7 @@ from neurobridge.real_data import (
     import_local_recording,
     inspect_local_recording,
     recover_project,
+    run_qeeg_analysis,
 )
 from neurobridge.service import run_experiment
 from neurobridge.source_modeling import run_source_model_benchmark
@@ -148,6 +152,17 @@ def lessons() -> list[dict[str, object]]:
             "steps": ["Resolve", "Inspect", "Copy", "QC", "Report", "Review"],
             "estimated_minutes": 12,
         },
+        {
+            "id": "real-data.qeeg",
+            "version": "1.0.0",
+            "title": "From cleaned EEG to quantitative maps",
+            "objective": (
+                "Filter an immutable working copy, review optional ICA components, and compare "
+                "PSD, band power, theta/beta ratio, coherence, and PLV."
+            ),
+            "steps": ["Configure", "Filter", "Review ICA", "Quantify", "Map", "Interpret"],
+            "estimated_minutes": 18,
+        },
     ]
 
 
@@ -180,6 +195,11 @@ def get_run(run_id: str) -> ExperimentResult:
 @app.post("/ica/fit", response_model=IcaFitResult)
 def fit_ica(recipe: IcaRecipe) -> IcaFitResult:
     return fit_ica_workbench(recipe)
+
+
+@app.post("/ica/simulate", response_model=IcaSimulationResult)
+def simulate_ica(recipe: IcaRecipe) -> IcaSimulationResult:
+    return simulate_ica_input(recipe)
 
 
 @app.post("/ica/apply", response_model=IcaApplyResult)
@@ -235,6 +255,17 @@ def recover_real_data_project(project_id: str) -> RealDataProject:
         return recover_project(project_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.post(
+    "/real-data/projects/{project_id}/qeeg",
+    response_model=RealDataQeegResult,
+)
+def create_real_data_qeeg_run(project_id: str, request: RealDataQeegRequest) -> RealDataQeegResult:
+    try:
+        return run_qeeg_analysis(project_id, request)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.post("/reports", response_model=ReportExportResult)

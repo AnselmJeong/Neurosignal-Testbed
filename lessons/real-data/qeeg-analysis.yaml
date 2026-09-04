@@ -1,0 +1,26 @@
+id: real-data.qeeg
+version: 1.0.0
+title: From cleaned EEG to quantitative maps
+objective: Create a non-destructive preprocessing derivative, review ICA components manually, and compare spectral and sensor-connectivity summaries.
+prerequisite: An imported local FIF working copy or cached EEGBCI lesson project
+controls:
+  unlocked:
+    - highpass_hz
+    - lowpass_hz
+    - notch_hz
+    - reference
+    - reject_by_annotation
+    - ica_method
+    - ica_exclude_components
+    - connectivity_band
+prediction_prompt: Which results should change if you change the reference, band boundary, or ICA exclusions, and why?
+reveal_policy: none
+checkpoints:
+  - create_a_new_filtered_fif_derivative
+  - inspect_ica_components_before_exclusion
+  - compare_absolute_and_relative_band_power
+  - interpret_theta_beta_as_a_recipe_dependent_ratio
+  - require_verified_sensor_positions_for_topomaps
+  - compare_coherence_and_plv_without_causal_claims
+reflection: QEEG summaries are descriptive unless a justified normative design and population are supplied; they are not a clinical diagnosis.
+engine_version: 0.1.0

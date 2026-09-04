@@ -190,6 +190,17 @@ class IcaCompatibility(ContractModel):
     fit_highpass_hz: float
 
 
+class IcaSimulationResult(ContractModel):
+    run_id: str
+    state: Literal["completed", "failed"]
+    recipe: IcaRecipe
+    sensor_trace: SeriesData
+    source_labels: list[str]
+    channel_names: list[str]
+    rank: int
+    provenance: Provenance
+
+
 class IcaFitResult(ContractModel):
     run_id: str
     state: Literal["completed", "failed"]
@@ -476,3 +487,103 @@ class ReportExportResult(ContractModel):
     report_name: str
     download_path: str
     generated_at: datetime
+
+
+class RealDataQeegRequest(ContractModel):
+    """Reproducible preprocessing and sensor-level QEEG settings for one imported project."""
+
+    schema_version: Literal["1.0"] = "1.0"
+    highpass_hz: float = Field(default=1.0, gt=0, le=40)
+    lowpass_hz: float = Field(default=40.0, gt=1, le=120)
+    notch_hz: float | None = Field(default=None, gt=0, le=120)
+    reference: Literal["average", "none"] = "average"
+    duration_limit_s: float = Field(default=120.0, ge=8, le=600)
+    epoch_duration_s: float = Field(default=2.0, ge=1, le=10)
+    reject_by_annotation: bool = True
+    ica_enabled: bool = False
+    ica_method: Literal["fastica", "infomax"] = "fastica"
+    ica_component_count: int = Field(default=12, ge=2, le=64)
+    ica_exclude_components: list[int] = Field(default_factory=list, max_length=32)
+    connectivity_band: Literal["theta", "alpha", "beta"] = "alpha"
+    max_connectivity_channels: int = Field(default=12, ge=2, le=24)
+
+    @model_validator(mode="after")
+    def valid_qeeg_request(self) -> RealDataQeegRequest:
+        if self.highpass_hz >= self.lowpass_hz:
+            raise ValueError("QEEG high-pass frequency must be lower than low-pass frequency")
+        if len(self.ica_exclude_components) != len(set(self.ica_exclude_components)):
+            raise ValueError("ICA exclusion indices must be unique")
+        if any(index < 0 for index in self.ica_exclude_components):
+            raise ValueError("ICA exclusion indices cannot be negative")
+        if self.ica_exclude_components and not self.ica_enabled:
+            raise ValueError("Enable ICA before excluding ICA components")
+        return self
+
+
+class QeegBandPower(ContractModel):
+    name: Literal["delta", "theta", "alpha", "beta", "gamma"]
+    low_hz: float
+    high_hz: float
+    mean_absolute_power_uv2: float
+    mean_relative_power: float
+    absolute_power_by_channel_uv2: list[float]
+    relative_power_by_channel: list[float]
+
+
+class QeegTopomap(ContractModel):
+    band: Literal["delta", "theta", "alpha", "beta", "gamma"]
+    channel_names: list[str]
+    relative_power: list[float]
+    sensor_positions: list[tuple[float, float]]
+    available: bool
+
+
+class QeegConnectivityMatrix(ContractModel):
+    method: Literal["coh", "plv"]
+    band: Literal["theta", "alpha", "beta"]
+    band_hz: tuple[float, float]
+    channel_names: list[str]
+    values: list[list[float]]
+    epoch_count: int
+
+
+class QeegIcaComponent(ContractModel):
+    index: int
+    explained_variance_pct: float
+    topography: list[float]
+    peak_frequency_hz: float | None
+
+
+class QeegProvenance(ContractModel):
+    created_at: datetime
+    mne_version: str
+    mne_connectivity_version: str
+    source_working_copy: str
+    source_sha256: str
+    analyzed_duration_s: float
+    recipe_hash: str
+
+
+class RealDataQeegResult(ContractModel):
+    run_id: str
+    state: Literal["completed", "partial"]
+    request: RealDataQeegRequest
+    channel_names: list[str]
+    sampling_rate_hz: float
+    analyzed_duration_s: float
+    trace: SeriesData
+    frequency_hz: list[float]
+    mean_psd_uv2_hz: list[float]
+    psd_by_channel_uv2_hz: dict[str, list[float]]
+    band_powers: list[QeegBandPower]
+    theta_beta_ratio_by_channel: dict[str, float | None]
+    mean_theta_beta_ratio: float | None
+    topomaps: list[QeegTopomap]
+    coherence: QeegConnectivityMatrix
+    plv: QeegConnectivityMatrix
+    ica_components: list[QeegIcaComponent]
+    ica_excluded_components: list[int]
+    cleaned_fif_path: str
+    result_json_path: str
+    warnings: list[WarningMessage]
+    provenance: QeegProvenance

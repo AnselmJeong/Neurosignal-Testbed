@@ -37,12 +37,12 @@ import {
 import { LabNavigator, type LabId } from './LabNavigator'
 
 const CONNECTIVITY_STEPS = [
-  { label: 'Predict', icon: CircleHelp },
-  { label: 'Estimate', icon: Waves },
-  { label: 'Threshold', icon: Gauge },
-  { label: 'Compare', icon: ScanLine },
-  { label: 'Reveal', icon: Eye },
-  { label: 'Defend', icon: ShieldCheck },
+  { label: 'Predict', description: 'State how sensor mixing may change the graph.', icon: CircleHelp },
+  { label: 'Estimate', description: 'Measure connectivity in the chosen space.', icon: Waves },
+  { label: 'Threshold', description: 'Test edges against shuffled null data.', icon: Gauge },
+  { label: 'Compare', description: 'Contrast sensor and latent networks.', icon: ScanLine },
+  { label: 'Reveal', description: 'Show the planted source connection.', icon: Eye },
+  { label: 'Defend', description: 'Explain which edges the evidence supports.', icon: ShieldCheck },
 ] as const
 
 const VIEWS = ['Spectrum', 'Matrix', 'Scalp', 'Circle', 'Surrogates'] as const
@@ -149,7 +149,7 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
   return (
     <>
       <main className="workspace connectivity-workspace">
-        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={CONNECTIVITY_STEPS} step={step} onStep={setStep} />
+        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={CONNECTIVITY_STEPS} step={step} />
 
         <aside className="control-panel connectivity-controls">
           <div className="panel-heading">

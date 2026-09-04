@@ -30,17 +30,18 @@ import { IcaWorkbench } from './components/IcaWorkbench'
 import { ControlHint } from './components/ControlHint'
 import { LabNavigator, type LabId } from './components/LabNavigator'
 import { RealDataWorkbench } from './components/RealDataWorkbench'
+import { QeegWorkbench } from './components/QeegWorkbench'
 import { SourceModelWorkbench } from './components/SourceModelWorkbench'
 import { checkHealth, runRecipe } from './lib/api'
 import { defaultRecipe, type ExperimentRecipe, type ExperimentResult, type RequestState } from './types'
 
 const STEPS = [
-  { label: 'Predict', icon: CircleHelp },
-  { label: 'Generate', icon: Sparkles },
-  { label: 'Observe', icon: Activity },
-  { label: 'Filter', icon: SlidersHorizontal },
-  { label: 'Compare', icon: Layers3 },
-  { label: 'Reveal', icon: Eye },
+  { label: 'Predict', description: 'Write what you expect the filter to preserve.', icon: CircleHelp },
+  { label: 'Generate', description: 'Create EEG from known source frequencies.', icon: Sparkles },
+  { label: 'Observe', description: 'Inspect the unfiltered sensor signal.', icon: Activity },
+  { label: 'Filter', description: 'Apply the selected preprocessing settings.', icon: SlidersHorizontal },
+  { label: 'Compare', description: 'Examine changes in time and frequency.', icon: Layers3 },
+  { label: 'Reveal', description: 'Check your prediction against the truth.', icon: Eye },
 ]
 
 const VIEWS = ['Channel detail', 'Filter response'] as const
@@ -269,9 +270,9 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : <>
+      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : <>
         <main className="workspace">
-        <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} onStep={setStep} />
+        <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} />
 
         <aside className="control-panel">
           <div className="panel-heading">

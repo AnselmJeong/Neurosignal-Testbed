@@ -23,6 +23,7 @@ from neurobridge.contracts.models import (
     IcaComponentSummary,
     IcaFitResult,
     IcaRecipe,
+    IcaSimulationResult,
     Provenance,
     SeriesData,
     WarningMessage,
@@ -255,6 +256,43 @@ def _view_indices(length: int, maximum: int = 720) -> NDArray[np.int64]:
     return np.linspace(0, length - 1, maximum, dtype=int)
 
 
+def simulate_ica_input(recipe: IcaRecipe) -> IcaSimulationResult:
+    """Generate the contaminated sensor EEG without fitting a decomposition."""
+
+    simulation = simulate_artifact_recipe(recipe)
+    raw = _raw_from_uv(simulation.raw_sensor_uv, recipe)
+    rank = int(mne.compute_rank(raw, rank=None, verbose=False)["eeg"])
+    view = _view_indices(simulation.time_s.size)
+    recipe_hash = hashlib.sha256(recipe.model_dump_json().encode()).hexdigest()[:12]
+    return IcaSimulationResult(
+        run_id=f"ica_input_{uuid.uuid4().hex[:10]}",
+        state="completed",
+        recipe=recipe,
+        sensor_trace=SeriesData(
+            x=np.round(simulation.time_s[view], 4).tolist(),
+            series={
+                CHANNEL_NAMES[index]: np.round(simulation.raw_sensor_uv[index, view], 4).tolist()
+                for index in range(len(CHANNEL_NAMES))
+            },
+            x_unit="s",
+            y_unit="µV",
+        ),
+        source_labels=list(TRUTH_LABELS),
+        channel_names=list(CHANNEL_NAMES),
+        rank=rank,
+        provenance=Provenance(
+            recipe_hash=recipe_hash,
+            engine_version=__version__,
+            numpy_version=np.__version__,
+            scipy_version=scipy.__version__,
+            seed=recipe.seed,
+            sampling_rate_hz=recipe.sampling_rate_hz,
+            reference=recipe.reference,
+            rank=rank,
+        ),
+    )
+
+
 def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
     """Fit ICA and publish inspectable components without excluding any of them."""
 
@@ -389,8 +427,18 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
         before_after_trace=SeriesData(
             x=np.round(fitted.simulation.time_s[view], 4).tolist(),
             series={
-                "Before · Fp1": np.round(fitted.simulation.raw_sensor_uv[0, view], 4).tolist(),
-                "After · Fp1": np.round(cleaned_uv[0, view], 4).tolist(),
+                label: values
+                for index, channel_name in enumerate(CHANNEL_NAMES)
+                for label, values in (
+                    (
+                        f"Before · {channel_name}",
+                        np.round(fitted.simulation.raw_sensor_uv[index, view], 4).tolist(),
+                    ),
+                    (
+                        f"After · {channel_name}",
+                        np.round(cleaned_uv[index, view], 4).tolist(),
+                    ),
+                )
             },
             x_unit="s",
             y_unit="µV",
