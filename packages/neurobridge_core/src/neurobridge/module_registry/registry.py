@@ -76,6 +76,21 @@ def capability_manifest() -> CapabilityManifest:
                 prerequisites=["local file selected by user", "no source mutation"],
             ),
             AnalysisModuleManifest(
+                id="qeeg.simulated-atlas",
+                version="2.0.0",
+                label="Simulated QEEG atlas, metrics, and synthetic norms",
+                status="available",
+                input_kinds=["QeegLabRecipe"],
+                output_kinds=[
+                    "sensor_eeg",
+                    "frequency_atlas",
+                    "qeeg_metrics",
+                    "synthetic_normative_z",
+                    "reproducible_json",
+                ],
+                prerequisites=["mne", "synthetic educational cohort only"],
+            ),
+            AnalysisModuleManifest(
                 id="real-data.qeeg",
                 version="1.0.0",
                 label="Real-data preprocessing and sensor QEEG",

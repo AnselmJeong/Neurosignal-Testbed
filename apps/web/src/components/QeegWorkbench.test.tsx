@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseIcaExclusions } from './QeegWorkbench'
+import { parseIcaExclusions } from './ImportedQeegWorkbench'
 
 describe('parseIcaExclusions', () => {
   it('keeps an empty field empty so the first ICA fit excludes nothing', () => {

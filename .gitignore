@@ -47,3 +47,6 @@ dist/
 # Neurosignal Testbed development and backup files
 Backups/
 DEVELOPMENT_ARCHIVE/
+
+# Local remote-access credentials, process state and tunnel logs
+.remote-access/

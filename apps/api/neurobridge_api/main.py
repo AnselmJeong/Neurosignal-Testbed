@@ -35,6 +35,7 @@ from neurobridge.contracts.models import (
 from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench, simulate_ica_input
 from neurobridge.module_registry import capability_manifest
 from neurobridge.preprocessing import validate_recipe
+from neurobridge.qeeg_lab import QeegLabRecipe, run_qeeg_lab
 from neurobridge.real_data import (
     default_project_root,
     eegbci_lesson_status,
@@ -158,14 +159,14 @@ def lessons() -> list[dict[str, object]]:
             "estimated_minutes": 12,
         },
         {
-            "id": "real-data.qeeg",
-            "version": "1.0.0",
-            "title": "From cleaned EEG to quantitative maps",
+            "id": "qeeg.simulated-atlas",
+            "version": "2.0.0",
+            "title": "From simulated EEG to maps and synthetic norms",
             "objective": (
-                "Filter an immutable working copy, review optional ICA components, and compare "
-                "PSD, band power, theta/beta ratio, coherence, and PLV."
+                "Simulate EEG through a spherical forward model, build frequency maps, "
+                "calculate QEEG metrics, and compare an independent synthetic cohort."
             ),
-            "steps": ["Configure", "Filter", "Review ICA", "Quantify", "Map", "Interpret"],
+            "steps": ["Generate", "Geometry", "Map", "Quantify", "Compare"],
             "estimated_minutes": 18,
         },
     ]
@@ -195,6 +196,11 @@ def get_run(run_id: str) -> ExperimentResult:
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail="Run not found")
     return RUNS[run_id]
+
+
+@app.post("/qeeg/simulate")
+def simulate_qeeg(recipe: QeegLabRecipe):
+    return run_qeeg_lab(recipe)
 
 
 @app.post("/ica/fit", response_model=IcaFitResult)

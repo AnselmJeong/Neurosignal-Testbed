@@ -571,3 +571,29 @@ git diff --check
 And finally:
 
 git status --short
+
+### QEEG simulation lesson
+
+The QEEG lab now opens a seeded simulation and frequency atlas without importing a recording. Its five views are **EEG → Geometry → Atlas → Metrics → Norms**. Adjust posterior alpha, frontal theta, central beta, alpha frequency, right alpha gain, 19/32 electrodes, reference and skull conductivity; regenerate to apply changes. A banner distinguishes changed controls from the last generated results.
+
+`POST /qeeg/simulate` accepts `QeegLabRecipe`. MNE computes a four-layer spherical forward model for six radial dipoles; A1/A2 are explicitly generated for linked-mastoid reference. PSD uses all 32 s at 128 Hz, 4 s Hann windows, 50% overlap and 0.25 Hz bins. The trace preview contains the first 10 s. Band intervals partition `[1,45)` Hz. Scalp images use azimuthally projected template coordinates and inverse-distance interpolation with labeled per-map ranges (default) or a shared comparison scale; they are not cortical source estimates. Frequency maps span 1–45 Hz in three pages.
+
+Metrics include absolute/relative band power, theta/beta, alpha maximum bin, median frequency, SEF95, normalized spectral entropy, `ln(alpha F4) − ln(alpha F3)`, magnitude-squared coherence, and band-filtered Hilbert PLV. Coherence averages 15 Welch windows before normalization; PLV trims one second from each edge. Reference and shared source mixing can inflate sensor connectivity.
+
+The independent synthetic reference cohort has 20–200 members. Each member receives lognormally varying oscillation amplitudes, a varying alpha frequency/right alpha gain, independent phases, 1/f background and sensor noise, then the identical measurement/analysis pipeline. The cohort is fixed under subject-only changes. Comparison uses log absolute power, logit relative fractions, or log theta/beta, sample SD (`ddof=1`) z scores and empirical percentiles. No age, state or clinical population validity is claimed. JSON export contains the generated recipe, subject metrics, transformed individual cohort values, geometry, spectra and software versions.
+
+The previous import/filter/ICA derivative workflow remains available through **Advanced: imported EEG**, and its API remains unchanged. The lesson specification is `lessons/qeeg/simulated-atlas.yaml`; the implementation boundary and validation record are in `qeeg_redesign_plan.md`.
+
+### Password-protected remote access
+
+Run `npm --prefix apps/web run build`, then `.venv/bin/python scripts/remote_access.py start` to start a production frontend and scientific API behind a temporary Cloudflare HTTPS tunnel. Requires `cloudflared` (`brew install cloudflared`). The remote server binds only `127.0.0.1:8765`; the local development services on 5174/8001 are unchanged. The frontend and every `/api` endpoint require HTTP Basic authentication. Use the generated username/password in `.remote-access/credentials.json` (owner-only permissions, ignored by Git). Anyone receiving those credentials can use the app's local-file analysis functions; share them only with intended users.
+
+Use `.venv/bin/python scripts/remote_access.py status` for the current URL and `.venv/bin/python scripts/remote_access.py stop` to close external access. The URL changes when a new tunnel starts. Keep the Mac awake and connected; this is a temporary session, not an always-on hosted deployment. Rebuild the frontend after UI changes; restart remote access after Python changes. Credentials are reused across restarts.
+
+The remote wrapper serves only the production `dist` assets, guards both frontend and API before routing, rejects cross-origin writes and disables caching. The original local-only API is mounted inside this wrapper rather than exposed directly. Cloudflare quick-tunnel setup: https://developers.cloudflare.com/tunnel/setup/.
+
+### Direct router port forwarding (5174)
+
+The development server listens on `0.0.0.0:5174`, accepts the explicit DDNS hostname `anselmjeong.synology.me`, and proxies `/api` to the loopback-only API on port 8001. Forward TCP external port 5174 to the Mac's LAN IP and internal port 5174 (verified as `192.168.0.9` on 2026-09-05; reserve this address in DHCP). Browse to `http://anselmjeong.synology.me:5174`, not `0.0.0.0`. Non-loopback requests require the existing `.remote-access/credentials.json` login before serving either frontend code or proxied API requests. Local loopback use does not require a login. Changing `Host` to an unrelated hostname remains blocked by Vite.
+
+Port 5174 uses plain HTTP; it does not encrypt credentials or EEG traffic. Use the HTTPS tunnel above when transport encryption is required. The development server and API must both be running for direct access. The Mac's firewall need not be disabled; allow the specific service if a firewall is enabled.

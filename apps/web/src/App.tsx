@@ -4,26 +4,21 @@ import {
   AlertTriangle,
   ChevronDown,
   CircleHelp,
-  Download,
   Eye,
   EyeOff,
-  FileJson,
   FolderKanban,
   History,
   Info,
   Layers3,
   Play,
   Plus,
-  Redo2,
   RotateCcw,
   Save,
   SlidersHorizontal,
   Sparkles,
-  Upload,
   X,
-  Zap,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { AboutExperience } from './components/AboutDialog'
 import { LineChart } from './components/Charts'
@@ -60,8 +55,6 @@ const formatWeight = (value: number | undefined) => value === undefined ? '—' 
 function App() {
   const [activeLab, setActiveLab] = useState<LabId>('filter')
   const [recipe, setRecipe] = useState<ExperimentRecipe>(() => cloneRecipe(defaultRecipe))
-  const [past, setPast] = useState<ExperimentRecipe[]>([])
-  const [future, setFuture] = useState<ExperimentRecipe[]>([])
   const [request, setRequest] = useState<RequestState>({ status: 'idle' })
   const [baseline, setBaseline] = useState<ExperimentResult | null>(null)
   const [runs, setRuns] = useState<ExperimentResult[]>([])
@@ -82,7 +75,6 @@ function App() {
       ?? 'learning-workspace'
   ))
   const [newProjectName, setNewProjectName] = useState('')
-  const importRef = useRef<HTMLInputElement>(null)
 
   const result = request.status === 'success' ? request.data : runs[0] ?? null
   const dirty = result ? JSON.stringify(recipe) !== JSON.stringify(result.recipe) : true
@@ -139,34 +131,12 @@ function App() {
     setNewProjectName('')
   }
 
-  function commit(next: ExperimentRecipe) {
-    setPast((items) => [...items.slice(-30), cloneRecipe(recipe)])
-    setFuture([])
-    setRecipe(next)
-  }
-
   function updateSimulation<K extends keyof ExperimentRecipe['simulation']>(key: K, value: ExperimentRecipe['simulation'][K]) {
-    commit({ ...recipe, simulation: { ...recipe.simulation, [key]: value } })
+    setRecipe({ ...recipe, simulation: { ...recipe.simulation, [key]: value } })
   }
 
   function updatePreprocessing<K extends keyof ExperimentRecipe['preprocessing']>(key: K, value: ExperimentRecipe['preprocessing'][K]) {
-    commit({ ...recipe, preprocessing: { ...recipe.preprocessing, [key]: value } })
-  }
-
-  function undo() {
-    const previous = past.at(-1)
-    if (!previous) return
-    setFuture((items) => [cloneRecipe(recipe), ...items])
-    setPast((items) => items.slice(0, -1))
-    setRecipe(previous)
-  }
-
-  function redo() {
-    const next = future[0]
-    if (!next) return
-    setPast((items) => [...items, cloneRecipe(recipe)])
-    setFuture((items) => items.slice(1))
-    setRecipe(next)
+    setRecipe({ ...recipe, preprocessing: { ...recipe.preprocessing, [key]: value } })
   }
 
   async function execute() {
@@ -206,28 +176,6 @@ function App() {
     setView('Channel detail')
   }
 
-  function exportRecipe() {
-    const blob = new Blob([JSON.stringify(recipe, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `neurosignal-${recipe.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }
-
-  async function importRecipe(file: File | undefined) {
-    if (!file) return
-    try {
-      const next = JSON.parse(await file.text()) as ExperimentRecipe
-      if (next.recipe_version !== '1.0' || !next.simulation || !next.preprocessing) throw new Error('Unsupported recipe')
-      commit(next)
-      setTruthVisible(false)
-    } catch {
-      setRequest({ status: 'error', message: 'This file is not a compatible NeuroSignal 1.0 recipe.' })
-    }
-  }
-
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -259,17 +207,7 @@ function App() {
           <span className={`service-state ${serviceReady === false ? 'offline' : ''}`}>
             <i />{serviceReady === null ? 'Checking service' : serviceReady ? 'Local service ready' : 'Service offline'}
           </span>
-          {activeLab === 'filter' && (
-            <>
-              <button className="icon-button" onClick={undo} disabled={!past.length} aria-label="Undo parameter change"><RotateCcw size={17} /></button>
-              <button className="icon-button" onClick={redo} disabled={!future.length} aria-label="Redo parameter change"><Redo2 size={17} /></button>
-              <button className="quiet-button" onClick={exportRecipe}><Download size={15} /> Recipe</button>
-              <button className="primary-button" onClick={execute} disabled={request.status === 'loading'}>
-                {request.status === 'loading' ? <Zap size={16} /> : <Play size={16} fill="currentColor" />}
-                {request.status === 'loading' ? 'Running' : dirty ? 'Run changes' : 'Run again'}
-              </button>
-            </>
-          )}
+
         </div>
       </header>
 
@@ -353,11 +291,12 @@ function App() {
             </div>
           </section>
 
-          <div className="recipe-actions">
-            <button onClick={() => importRef.current?.click()}><Upload size={15} /> Import</button>
-            <button onClick={exportRecipe}><FileJson size={15} /> Export JSON</button>
-            <input ref={importRef} hidden type="file" accept="application/json,.json" onChange={(event) => void importRecipe(event.target.files?.[0])} />
-          </div>
+          <button className="primary-button sampling-run-button" onClick={execute}
+            disabled={request.status === 'loading' || !prediction.trim()}>
+            <Play size={15} fill="currentColor" />
+            {request.status === 'loading' ? 'Generating EEG…' : result ? 'Regenerate EEG' : 'Generate EEG'}
+          </button>
+
         </aside>
 
         <section className="canvas-panel sampling-canvas">
@@ -398,16 +337,15 @@ function App() {
                 <AlertTriangle size={30} />
                 <h3>Run stopped safely</h3>
                 <p>{request.message}</p>
-                <button className="quiet-button" onClick={execute}>Try again</button>
+                <p>Check the settings, then retry using the EEG generation button in the control panel.</p>
               </div>
             )}
             {!result && request.status !== 'loading' && request.status !== 'error' && (
               <div className="empty-stage">
                 <div className="empty-wave" aria-hidden="true"><Activity size={42} /></div>
                 <span className="eyebrow">Ready to experiment</span>
-                <h3>Record a prediction, then run the known mixture.</h3>
-                <p>The first result stays hidden until your prediction is saved above.</p>
-                <button className="primary-button" onClick={execute}><Play size={15} fill="currentColor" /> Run default recipe</button>
+                <h3>Generate EEG from your settings.</h3>
+                <p>Write your prediction, adjust the signal and filter controls, then select Generate EEG in the control panel.</p>
               </div>
             )}
             {result && request.status !== 'loading' && view === 'Channel detail' && selectedChannelDataAvailable && (
@@ -453,8 +391,7 @@ function App() {
                 <AlertTriangle size={30} />
                 <span className="eyebrow">Incomplete run result</span>
                 <h3>{selectedChannelName} signal or spectrum is missing.</h3>
-                <p>Restart the local service, then run the recipe again to generate channel-matched signal and spectrum data.</p>
-                <button className="quiet-button" onClick={execute}>Run again</button>
+                <p>Restart the local service, then select Regenerate EEG in the control panel to generate matching signal and spectrum data.</p>
               </div>
             )}
             {result && request.status !== 'loading' && view === 'Filter response' && (
@@ -495,7 +432,7 @@ function App() {
             <h2>{result ? `Why ${selectedChannelName} looks this way` : 'Reason before reveal.'}</h2>
             <p>{result && dominantSource
               ? `${dominantSource.label} (${dominantSource.frequency_hz} Hz) has the largest expected contribution to the processed trace: about ${dominantContribution?.toFixed(1)} µV before temporal filtering.`
-              : 'Run the recipe, then compare one channel’s signal, spectrum, and source weights together.'}</p>
+              : 'Generate EEG, then compare one channel’s signal, spectrum, and source weights together.'}</p>
           </section>
 
           {result && dominantSource && (
@@ -565,7 +502,7 @@ function App() {
         </div>
         <div className="strip-actions">
           <button onClick={() => result && setBaseline(result)} disabled={!result}><Save size={15} /> Pin baseline</button>
-          <button onClick={() => { setRecipe(cloneRecipe(defaultRecipe)); setPast([]); setFuture([]) }}><RotateCcw size={15} /> Reset draft</button>
+          <button onClick={() => { setRecipe(cloneRecipe(defaultRecipe)) }}><RotateCcw size={15} /> Reset draft</button>
         </div>
         </footer>
       </>}

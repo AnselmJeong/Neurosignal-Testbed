@@ -1,0 +1,25 @@
+id: qeeg.simulated-atlas
+version: 2.0.0
+title: From simulated EEG to scalp maps and synthetic norms
+estimated_minutes: 18
+objective: Follow multichannel EEG through electrode geometry, spectral metrics, scalp interpolation and a reproducible synthetic reference comparison.
+steps:
+  - id: generate
+    action: Generate 32 seconds of EEG from six radial dipoles plus independent 1/f background and sensor noise.
+    predict: Which electrodes should show the greatest alpha power when posterior alpha amplitude increases?
+  - id: geometry
+    action: Inspect the four-layer sphere, standard_1020 electrode coordinates and average or linked-mastoid reference.
+    compare: Change skull conductivity or reference while keeping source parameters and seed fixed.
+    explain: The forward head model generates electrode signals; scalp interpolation maps electrode metrics and does not localize cortex.
+  - id: atlas
+    action: Compare 1 Hz frequency maps and canonical band maps using absolute or relative power. Per-map ranges reveal spatial patterns; shared ranges compare magnitude across frequencies.
+    explain: Welch uses 4 s Hann windows, 50 percent overlap, 0.25 Hz frequency bins and 15 segments. Integrate bins in half-open intervals; total power uses 1 <= f < 45 Hz.
+  - id: quantify
+    action: Inspect channel PSD, absolute/relative power, theta/beta, alpha peak, median frequency, SEF95, normalized spectral entropy and fixed F4/F3 alpha asymmetry.
+    compare: Compare alpha-band magnitude-squared coherence with time-domain Hilbert PLV. High sensor connectivity can arise from shared sources and reference.
+  - id: norms
+    action: Independently simulate 20, 80 or 200 reference peers through the same forward/reference/spectral pipeline.
+    explain: Compare log absolute power, logit relative power and log theta/beta using sample-SD z scores and empirical percentiles.
+    compare: Alter subject amplitude without changing the cohort. Then alter cohort size or seed to expose sampling variability.
+reflection: What population and acquisition compatibility would have to be established before using a real normative database? Why is a colored z-score map neither a cortical source map nor a diagnosis?
+exports: Recipe, spectra, sensor/source geometry, leadfield, subject metrics, transformed cohort values and software versions in JSON.

@@ -41,8 +41,8 @@ const LABS: Record<LabId, { number: string; label: string; title: string; object
     objective: 'Inspect a local recording safely, make a FIF working copy, and review descriptive QC.', minutes: '12 min', icon: HardDrive,
   },
   qeeg: {
-    number: '06', label: 'QEEG', title: 'What does this recipe quantify?',
-    objective: 'Preprocess a real-data derivative, then compare spectra, band maps, coherence, and PLV.', minutes: '18 min', icon: ChartNoAxesCombined,
+    number: '06', label: 'QEEG', title: 'How does EEG become a map?',
+    objective: 'Simulate EEG, build scalp maps, calculate metrics, and compare a synthetic reference cohort.', minutes: '18 min', icon: ChartNoAxesCombined,
   },
 }
 

@@ -41,7 +41,8 @@
 .conn-empty > svg { color: var(--accent); margin-bottom: 12px; }
 .conn-empty p { margin: 0; max-width: 64ch; font-size: 13px; line-height: 1.6; color: #58665f; }
 .conn-trace-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
-.conn-trace-frame { height: 360px; min-width: 0; }
+/* Each embedded recording gets the window minus the app header, footer and section title. */
+.conn-trace-frame { height: max(360px, calc(100dvh - 200px)); min-width: 0; }
 .conn-trace-frame .eeg-tracer-browser { height: 100%; min-height: 0; }
 .conn-reading-note, .conn-recipe-summary { font-size: 12px; line-height: 1.7; color: #58665f; }
 .conn-recipe-summary { font-variant-numeric: tabular-nums; }

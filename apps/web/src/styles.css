@@ -23,9 +23,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 button:disabled { opacity: .45; cursor: not-allowed; }
 
 .app-shell { min-height: 100vh; display: grid; grid-template-rows: 76px minmax(650px, 1fr) 86px; }
-.app-shell:has(.nsv-viewer) { height: 100dvh; min-height: 812px; }
+.app-shell:has(.nsv-viewer) { height: 100dvh; min-height: 650px; grid-template-rows: 76px minmax(0, 1fr) 86px; }
 .workspace:has(.nsv-viewer) { grid-template-rows: minmax(0, 1fr); }
-.canvas-panel:has(.nsv-viewer) { min-height: 0; }
+.workspace:not(.ql-workspace) .canvas-panel:has(.nsv-viewer) { min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
 .app-header { display: grid; grid-template-columns: 225px minmax(270px, 1fr) auto; align-items: center; gap: 24px; padding: 0 20px; background: var(--paper); border-bottom: 1px solid var(--line-strong); position: relative; z-index: 5; }
 .brand-lockup { display: flex; align-items: center; gap: 11px; }
 .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; color: #fff; background: var(--ink); border-radius: 50%; }
@@ -686,3 +686,5 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .real-data-import-details summary { cursor: pointer; padding: 10px 0; }
 .real-data-import-details .inspection-canvas { margin-top: 12px; }
 .real-data-trace-panel { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: #f2f2ed; }
+
+.sampling-run-button { width: 100%; margin-top: 16px; justify-content: center; }
