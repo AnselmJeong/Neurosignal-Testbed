@@ -14,4 +14,4 @@ checkpoints:
   - verify_apply_compatibility
   - compare_attenuation_and_distortion
 reflection: Explain why the ICA fit copy and the target copy may differ in high-pass filtering but not in channel order or reference.
-engine_version: 0.2.0
+engine_version: 0.2.5

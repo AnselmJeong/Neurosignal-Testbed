@@ -35,7 +35,7 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
         <p>An educational and research workbench for transparent EEG simulation, preprocessing, QEEG, connectivity, and source-modeling experiments.</p>
         <dl>
           <div><dt>Version</dt><dd>{APP_VERSION}</dd></div>
-          <div><dt>Developer</dt><dd>Developed by Anselm Jeong</dd></div>
+          <div><dt>Developer</dt><dd>Anselm Jeong</dd></div>
         </dl>
         <small>Educational and research use only · Not for clinical diagnosis</small>
       </section>

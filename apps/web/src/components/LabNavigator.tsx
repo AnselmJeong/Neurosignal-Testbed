@@ -29,12 +29,12 @@ const LABS: Record<LabId, { number: string; label: string; title: string; object
     objective: 'Inspect components and remove a planted blink without losing neural signal.', minutes: '12 min', icon: Brain,
   },
   connectivity: {
-    number: '03', label: 'Connectivity', title: 'When does a sensor edge lie?',
-    objective: 'Compare latent and sensor networks, then test estimates against shuffled null data.', minutes: '15 min', icon: Waves,
+    number: '03', label: 'Connectivity', title: 'From sources to sensor edges',
+    objective: 'Build a source relationship, observe its EEG, and compare sensor estimates under two settings.', minutes: '15 min', icon: Waves,
   },
   source: {
-    number: '04', label: 'Source', title: 'Where does the estimate spread?',
-    objective: 'Reconstruct planted ROI activity and inspect leakage before making a location claim.', minutes: '15 min', icon: BrainCircuit,
+    number: '04', label: 'Source', title: 'Can EEG locate its sources?',
+    objective: 'Estimate spatial power peaks from EEG, then reveal displacement, missed sources and unmatched peaks.', minutes: '15 min', icon: BrainCircuit,
   },
   real: {
     number: '05', label: 'Real data', title: 'From recording to QC report',

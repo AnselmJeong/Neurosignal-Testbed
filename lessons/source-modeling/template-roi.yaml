@@ -1,17 +1,20 @@
 id: source-modeling.template-roi
-version: 1.0.0
-title: How much of an ROI is really there?
-objective: Forward-project known template ROI activity, reconstruct it with MNE, and inspect source-resolution leakage before revealing truth.
+version: 2.0.0
+title: Can EEG lead us back to its sources?
+objective: Reconstruct all candidate currents from sensor EEG, detect spatial band-power peaks without truth, then reveal displaced, missed and unmatched locations.
 recipe: fixtures/recipes/source-template-roi.json
 controls:
-  unlocked: [phase_lag_deg, source_amplitude_nam, sensor_noise_uv]
-prediction_prompt: Which reconstructed ROI will best match the planted alpha waveform, and where could leakage make a false ROI claim plausible?
+  unlocked: [phase_lag_deg, source_amplitude_nam, sensor_noise_uv, grid_spacing_mm, inverse.lambda2, inverse.peak_threshold, inverse.peak_separation_mm]
+prediction_prompt: Will two alpha sources remain distinguishable? Predict how noise, regularization and peak threshold change detected locations and counts.
 reveal_policy: deliberate
 checkpoints:
   - inspect_forward_sensor_traces
-  - inspect_reconstructed_roi_time_courses
+  - inspect_all_candidate_band_power
+  - inspect_detected_peaks_without_truth
+  - inspect_candidate_time_courses
   - compare_forward_lead_fields
-  - inspect_source_resolution_cross_talk
   - reveal_template_vertex_truth
-reflection: Explain why a low location error in this template simulation does not validate an individualized source-localization result.
-engine_version: 0.2.0
+  - count_missed_sources_and_unmatched_peaks
+  - inspect_truth_coordinate_waveforms_and_resolution_cross_talk
+reflection: Explain why small matched distances can coexist with missed sources or many false detections, and why denser grids do not add sensor information.
+engine_version: 0.2.5

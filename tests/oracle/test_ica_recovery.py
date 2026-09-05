@@ -27,6 +27,7 @@ def test_simulation_is_available_before_ica_fit() -> None:
 
 
 def test_rank_aware_ica_recovers_planted_blink(planted_fit) -> None:
+    assert planted_fit.blink_component_index is not None
     blink = planted_fit.components[planted_fit.blink_component_index]
     assert planted_fit.compatibility.rank == 7
     assert len(planted_fit.components) == 4
@@ -36,6 +37,7 @@ def test_rank_aware_ica_recovers_planted_blink(planted_fit) -> None:
 
 
 def test_icalabel_is_advisory_and_never_an_exclusion(planted_fit) -> None:
+    assert planted_fit.blink_component_index is not None
     blink = planted_fit.components[planted_fit.blink_component_index]
     assert planted_fit.icalabel_available is True
     assert blink.suggested_label == "eye blink"
@@ -46,6 +48,7 @@ def test_icalabel_is_advisory_and_never_an_exclusion(planted_fit) -> None:
 def test_manual_blink_exclusion_attenuates_artifact_with_bounded_distortion(
     planted_fit,
 ) -> None:
+    assert planted_fit.blink_component_index is not None
     result = apply_ica_exclusions(
         apply_request(planted_fit, [planted_fit.blink_component_index])
     )
@@ -72,6 +75,15 @@ def test_no_artifact_control_exposes_cost_of_unnecessary_removal() -> None:
         IcaRecipe(blink_amplitude_uv=0)
     )
     result = apply_ica_exclusions(apply_request(control, [0]))
-    assert control.components[control.blink_component_index].matched_correlation == 0
+    unmatched = [component for component in control.components if component.matched_truth is None]
+    assert control.blink_component_index is None
+    assert len(unmatched) == 1
+    assert unmatched[0].matched_correlation is None
+    assert {component.matched_truth for component in control.components} == {
+        "alpha",
+        "theta",
+        "beta",
+        None,
+    }
     assert result.artifact_attenuation_db < 0
     assert result.neural_distortion_pct > 50

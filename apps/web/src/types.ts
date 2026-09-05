@@ -130,8 +130,8 @@ export interface IcaComponentSummary {
   suggested_label: string
   suggestion_probability: number
   explained_variance_pct: number
-  matched_truth: string
-  matched_correlation: number
+  matched_truth: string | null
+  matched_correlation: number | null
   time_s: number[]
   trace: number[]
   frequency_hz: number[]
@@ -159,7 +159,7 @@ export interface IcaFitResult {
     rank: number
     fit_highpass_hz: number
   }
-  blink_component_index: number
+  blink_component_index: number | null
   mean_matched_correlation: number
   icalabel_available: boolean
   provenance: ExperimentResult['provenance']
@@ -253,7 +253,16 @@ export interface ConnectivityEdge {
   is_true: boolean | null
 }
 
+export interface ConnectivitySimulation {
+  recipe: ConnectivityRecipe
+  epoch_index: number
+  latent_trace: { x: number[]; series: Record<string, number[]>; x_unit: string; y_unit: string }
+  sensor_trace: { x: number[]; series: Record<string, number[]>; x_unit: string; y_unit: string }
+  mixing_matrix: number[][]
+}
+
 export interface ConnectivityResult {
+  simulation: ConnectivitySimulation
   run_id: string
   state: 'completed' | 'failed'
   recipe: ConnectivityRecipe
@@ -350,6 +359,8 @@ export interface SourceModelRecipe {
   sensor_noise_uv: number
   inverse_method: 'MNE'
   montage: 'standard_1020_14'
+  grid_spacing_mm: 20 | 40
+  inverse: { lambda2: number; peak_threshold: number; peak_separation_mm: number }
 }
 
 export interface SourceModelResult {
@@ -360,7 +371,11 @@ export interface SourceModelResult {
   template_description: string
   forward_method: string
   inverse_method: string
-  rois: { id: string; label: string; position_mm: [number, number, number] }[]
+  rois: SourceRoi[]
+  candidate_positions_mm: [number, number, number][]
+  power_maps: SourcePowerMap[]
+  candidate_time_courses: ExperimentResult['traces']
+  evaluation: SourceEvaluation
   sensor_trace: ExperimentResult['traces']
   latent_roi_time_courses: ExperimentResult['traces']
   reconstructed_roi_time_courses: ExperimentResult['traces']
@@ -369,13 +384,65 @@ export interface SourceModelResult {
   scores: {
     mean_roi_correlation: number
     roi_correlations: Record<string, number>
-    mean_location_error_mm: number
-    max_location_error_mm: number
-    location_error_mm: Record<string, number>
     max_roi_cross_talk: number
     leakage_matrix: number[][]
-    benchmark_passed: boolean
   }
+  provenance: ExperimentResult['provenance']
+}
+
+export interface SourcePeak {
+  id: string
+  vertex_index: number
+  position_mm: [number, number, number]
+  power_nam2: number
+  relative_power: number
+}
+
+export interface SourcePowerMap {
+  id: string
+  label: string
+  low_hz: number
+  high_hz: number
+  power_nam2: number[]
+  relative_power: number[]
+  peaks: SourcePeak[]
+}
+
+export interface SourceEvaluation {
+  match_radius_mm: number
+  bands: {
+    band_id: string
+    matches: { roi_id: string; peak_id: string; distance_mm: number }[]
+    missed_roi_ids: string[]
+    unmatched_peak_ids: string[]
+    mean_error_mm: number | null
+  }[]
+  matched_count: number
+  missed_count: number
+  unmatched_peak_count: number
+  mean_error_mm: number | null
+  max_error_mm: number | null
+  outside_band_roi_ids: string[]
+}
+
+export interface SourceRoi {
+  id: string
+  label: string
+  position_mm: [number, number, number]
+  frequency_hz: number
+  amplitude_nam: number
+  phase_deg: number
+}
+
+export interface SourceModelSimulation {
+  run_id: string
+  state: 'completed' | 'failed'
+  recipe: SourceModelRecipe
+  template_description: string
+  rois: SourceRoi[]
+  candidate_positions_mm: [number, number, number][]
+  sensor_trace: ExperimentResult['traces']
+  sensor_positions: [number, number][]
   provenance: ExperimentResult['provenance']
 }
 
@@ -397,6 +464,8 @@ export const defaultSourceModelRecipe = {
   sensor_noise_uv: 0.08,
   inverse_method: 'MNE',
   montage: 'standard_1020_14',
+  grid_spacing_mm: 20,
+  inverse: { lambda2: 1 / 9, peak_threshold: 0.35, peak_separation_mm: 40 },
 } satisfies SourceModelRecipe
 
 export interface LocalImportRequest {

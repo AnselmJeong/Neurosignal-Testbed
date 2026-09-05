@@ -1,3 +1,4 @@
+import { StackedEegComparison } from './components/StackedEegBrowser'
 import {
   Activity,
   AlertTriangle,
@@ -416,16 +417,13 @@ function App() {
                     <span><b>01</b><span><strong>Signal</strong><small>Voltage over time</small></span></span>
                     <small>Raw mix → reference → 1–40 Hz filter</small>
                   </div>
-                  <LineChart
+                  <StackedEegComparison
                     x={result.traces.x}
-                    series={[
-                      { label: `Raw · ${selectedChannelName}`, values: selectedRawTrace, color: '#a8aaa5', dashed: true },
-                      { label: `Processed · ${selectedChannelName}`, values: selectedFilteredTrace, color: '#087f83' },
-                    ]}
-                    xLabel="Time (s)"
-                    yLabel="Amplitude (µV)"
+                    series={{ [`Before · ${selectedChannelName}`]: selectedRawTrace, [`After · ${selectedChannelName}`]: selectedFilteredTrace }}
+                    channelNames={[selectedChannelName]}
+                    beforeLabel="Raw EEG"
+                    afterLabel="Processed EEG"
                     ariaLabel={`Raw and processed ${selectedChannelName} time series`}
-                    height={220}
                   />
                 </section>
                 <section className="channel-plot spectrum-plot">

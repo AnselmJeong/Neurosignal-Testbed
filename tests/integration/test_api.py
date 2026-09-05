@@ -90,6 +90,23 @@ def test_ica_apply_rejects_incompatible_target() -> None:
     assert "incompatible" in response.json()["detail"]
 
 
+def test_no_artifact_ica_has_no_blink_truth_match() -> None:
+    response = client.post("/ica/fit", json={"blink_amplitude_uv": 0})
+    assert response.status_code == 200
+    fit = response.json()
+    unmatched = [component for component in fit["components"] if component["matched_truth"] is None]
+
+    assert fit["blink_component_index"] is None
+    assert len(unmatched) == 1
+    assert unmatched[0]["matched_correlation"] is None
+    assert {component["matched_truth"] for component in fit["components"]} == {
+        "alpha",
+        "theta",
+        "beta",
+        None,
+    }
+
+
 def test_connectivity_truth_challenge_contract() -> None:
     response = client.post(
         "/connectivity/runs",
@@ -108,14 +125,24 @@ def test_connectivity_truth_challenge_contract() -> None:
 
 
 def test_source_model_template_benchmark_contract() -> None:
+    simulation_response = client.post("/source-modeling/simulate", json={})
+    assert simulation_response.status_code == 200
+    simulation = simulation_response.json()
+    assert simulation["state"] == "completed"
+    assert len(simulation["sensor_trace"]["series"]) == 14
+    assert simulation["rois"][0]["frequency_hz"] == 10
+
     response = client.post("/source-modeling/runs", json={})
     assert response.status_code == 200
     result = response.json()
     assert result["state"] == "completed"
-    assert result["scores"]["benchmark_passed"] is True
-    assert result["scores"]["mean_roi_correlation"] > 0.8
-    assert result["scores"]["max_location_error_mm"] <= 60
+    assert "benchmark_passed" not in result["scores"]
+    assert result["evaluation"]["mean_error_mm"] > 0
     assert len(result["rois"]) == 4
+    assert len(result["candidate_positions_mm"]) == 250
+    assert len(result["candidate_time_courses"]["series"]) == 250
+    assert len(result["power_maps"]) == 4
+    assert "estimated_positions_mm" not in result
     assert any(item["code"] == "source_leakage_caveat" for item in result["warnings"])
 
 
@@ -143,3 +170,15 @@ def test_real_data_api_import_inspect_and_report(tmp_path, monkeypatch) -> None:
     downloaded = client.get(report.json()["download_path"])
     assert downloaded.status_code == 200
     assert b"truth" not in downloaded.content.lower()
+
+
+def test_connectivity_preview_contract_and_invalid_band() -> None:
+    response = client.post("/connectivity/simulate", json={"coupling_strength": 0})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["epoch_index"] == 0
+    assert result["recipe"]["coupling_strength"] == 0
+    assert len(result["latent_trace"]["series"]) == 4
+    assert len(result["sensor_trace"]["series"]) == 8
+    assert result["sensor_trace"]["y_unit"] == "a.u."
+    assert client.post("/connectivity/simulate", json={"alpha_frequency_hz": 20}).status_code == 422

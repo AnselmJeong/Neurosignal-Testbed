@@ -1,6 +1,6 @@
 [project]
 name = "neurosignal-testbed"
-version = "0.2.0"
+version = "0.2.5"
 description = "Truth-first local EEG simulation and learning workbench"
 readme = "README.md"
 requires-python = ">=3.12"

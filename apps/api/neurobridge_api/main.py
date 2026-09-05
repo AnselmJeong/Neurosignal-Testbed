@@ -7,10 +7,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from neurobridge import __version__
-from neurobridge.connectivity import run_connectivity_challenge
+from neurobridge.connectivity import run_connectivity_challenge, simulate_connectivity
 from neurobridge.contracts.models import (
     ConnectivityRecipe,
     ConnectivityResult,
+    ConnectivitySimulation,
     EegbciImportRequest,
     ExperimentRecipe,
     ExperimentResult,
@@ -28,6 +29,7 @@ from neurobridge.contracts.models import (
     ReportExportResult,
     SourceModelRecipe,
     SourceModelResult,
+    SourceModelSimulation,
     WarningMessage,
 )
 from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench, simulate_ica_input
@@ -45,7 +47,7 @@ from neurobridge.real_data import (
 )
 from neurobridge.real_data.trace import StaleTraceRevision, trace_metadata, trace_window
 from neurobridge.service import run_experiment
-from neurobridge.source_modeling import run_source_model_benchmark
+from neurobridge.source_modeling import run_source_model_benchmark, simulate_source_model
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -113,24 +115,24 @@ def lessons() -> list[dict[str, object]]:
         },
         {
             "id": "connectivity.volume-conduction",
-            "version": "1.0.0",
-            "title": "When does a sensor edge lie?",
+            "version": "1.1.0",
+            "title": "From sources to sensor edges",
             "objective": (
-                "Compare latent and sensor networks, threshold against epoch-shuffled "
-                "surrogates, and explain volume-conduction and reference effects."
+                "Configure four virtual sources, generate their sensor EEG, then compare "
+                "A/B connectivity with fixed scales and epoch-shuffled null thresholds."
             ),
-            "steps": ["Predict", "Estimate", "Threshold", "Compare", "Reveal", "Defend"],
+            "steps": ["Build", "Observe", "Estimate", "Compare"],
             "estimated_minutes": 15,
         },
         {
             "id": "connectivity.reference-sensitivity",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "title": "Same sources, different network?",
             "objective": (
                 "Hold the latent graph fixed while switching sensor reference, then compare "
-                "which sensor edges cross the same surrogate threshold."
+                "which sensor edges cross their respective surrogate thresholds."
             ),
-            "steps": ["Predict", "Estimate", "Switch", "Compare", "Reveal", "Explain"],
+            "steps": ["Build", "Observe", "Estimate", "Compare"],
             "estimated_minutes": 10,
         },
         {
@@ -213,6 +215,11 @@ def apply_ica(request: IcaApplyRequest) -> IcaApplyResult:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
 
+@app.post("/connectivity/simulate", response_model=ConnectivitySimulation)
+def create_connectivity_simulation(recipe: ConnectivityRecipe) -> ConnectivitySimulation:
+    return simulate_connectivity(recipe)
+
+
 @app.post("/connectivity/runs", response_model=ConnectivityResult)
 def create_connectivity_run(recipe: ConnectivityRecipe) -> ConnectivityResult:
     return run_connectivity_challenge(recipe)
@@ -221,6 +228,11 @@ def create_connectivity_run(recipe: ConnectivityRecipe) -> ConnectivityResult:
 @app.post("/source-modeling/runs", response_model=SourceModelResult)
 def create_source_model_run(recipe: SourceModelRecipe) -> SourceModelResult:
     return run_source_model_benchmark(recipe)
+
+
+@app.post("/source-modeling/simulate", response_model=SourceModelSimulation)
+def create_source_model_simulation(recipe: SourceModelRecipe) -> SourceModelSimulation:
+    return simulate_source_model(recipe)
 
 
 @app.post("/real-data/inspect", response_model=RecordingInspection)

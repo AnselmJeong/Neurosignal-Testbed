@@ -16,8 +16,8 @@ describe('AboutExperience', () => {
     fireEvent.click(screen.getByRole('button', { name: 'About NeuroSignal' }))
 
     expect(screen.getByRole('dialog', { name: 'Explore signals. Question every result.' })).toBeVisible()
-    expect(screen.getByText(APP_VERSION)).toHaveTextContent('0.2.0')
-    expect(screen.getByText('Developed by Anselm Jeong')).toBeVisible()
+    expect(screen.getByText(APP_VERSION)).toHaveTextContent('0.2.5')
+    expect(screen.getByText('Anselm Jeong')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Close About dialog' })).toHaveFocus()
   })
 

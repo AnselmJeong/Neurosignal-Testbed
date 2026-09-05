@@ -14,4 +14,4 @@ checkpoints:
   - review_descriptive_qc
   - export_local_html_record
 reflection: The Berger effect is an expected educational pipeline check, not a guarantee for every recording or an individual-level conclusion.
-engine_version: 0.2.0
+engine_version: 0.2.5

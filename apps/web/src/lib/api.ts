@@ -1,5 +1,6 @@
 import type {
   ConnectivityRecipe,
+  ConnectivitySimulation,
   ConnectivityResult,
   ExperimentRecipe,
   ExperimentResult,
@@ -9,6 +10,7 @@ import type {
   IcaSimulationResult,
   SourceModelRecipe,
   SourceModelResult,
+  SourceModelSimulation,
   EegbciLessonStatus,
   EegbciImportRequest,
   LocalImportRequest,
@@ -77,12 +79,20 @@ export function applyIca(
   })
 }
 
+export function simulateConnectivity(recipe: ConnectivityRecipe): Promise<ConnectivitySimulation> {
+  return postJson<ConnectivitySimulation>('/connectivity/simulate', recipe)
+}
+
 export function runConnectivity(recipe: ConnectivityRecipe): Promise<ConnectivityResult> {
   return postJson<ConnectivityResult>('/connectivity/runs', recipe)
 }
 
 export function runSourceModel(recipe: SourceModelRecipe): Promise<SourceModelResult> {
   return postJson<SourceModelResult>('/source-modeling/runs', recipe)
+}
+
+export function simulateSourceModel(recipe: SourceModelRecipe): Promise<SourceModelSimulation> {
+  return postJson<SourceModelSimulation>('/source-modeling/simulate', recipe)
 }
 
 export function inspectRealData(request: LocalImportRequest): Promise<RecordingInspection> {

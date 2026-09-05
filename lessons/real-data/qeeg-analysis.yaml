@@ -23,4 +23,4 @@ checkpoints:
   - require_verified_sensor_positions_for_topomaps
   - compare_coherence_and_plv_without_causal_claims
 reflection: QEEG summaries are descriptive unless a justified normative design and population are supplied; they are not a clinical diagnosis.
-engine_version: 0.2.0
+engine_version: 0.2.5

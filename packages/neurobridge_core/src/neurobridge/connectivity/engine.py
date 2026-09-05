@@ -21,7 +21,9 @@ from neurobridge.contracts.models import (
     ConnectivityRecipe,
     ConnectivityResult,
     ConnectivityScores,
+    ConnectivitySimulation,
     Provenance,
+    SeriesData,
     SpectralParameterization,
     SpectrumComparison,
     WarningMessage,
@@ -108,6 +110,33 @@ def _simulate(recipe: ConnectivityRecipe) -> ChallengeData:
     truth = np.zeros((4, 4), dtype=float)
     truth[0, 1] = truth[1, 0] = recipe.coupling_strength
     return ChallengeData(latent, sensor, mixing, truth)
+
+
+def _preview(data: ChallengeData, recipe: ConnectivityRecipe) -> ConnectivitySimulation:
+    """Expose epoch zero verbatim (rounded to 6 decimals), without concatenating epoch seams."""
+    times = np.arange(data.latent_epochs.shape[-1]) / recipe.sampling_rate_hz
+
+    def trace(values: NDArray[np.float64], names: list[str]) -> SeriesData:
+        return SeriesData(
+            x=np.round(times, 6).tolist(),
+            series={
+                name: np.round(row, 6).tolist() for name, row in zip(names, values, strict=True)
+            },
+            x_unit="s",
+            y_unit="a.u.",
+        )
+
+    return ConnectivitySimulation(
+        recipe=recipe,
+        latent_trace=trace(data.latent_epochs[0], LATENT_NAMES),
+        sensor_trace=trace(data.sensor_epochs[0], SENSOR_NAMES),
+        mixing_matrix=np.round(data.mixing_matrix, 6).tolist(),
+    )
+
+
+def simulate_connectivity(recipe: ConnectivityRecipe) -> ConnectivitySimulation:
+    """Generate the same input as estimation, without fitting spectra or shuffled nulls."""
+    return _preview(_simulate(recipe), recipe)
 
 
 def _estimate(
@@ -243,7 +272,8 @@ def _score(
         false_negative=false_negative,
         precision=round(precision, 4),
         recall=round(recall, 4),
-        strongest_edge_correct=int(np.argmax(estimate_values)) == int(np.argmax(truth_values)),
+        strongest_edge_correct=bool(planted.any())
+        and int(np.argmax(estimate_values)) == int(np.argmax(truth_values)),
         weighted_truth_correlation=round(correlation, 4),
     )
 
@@ -292,7 +322,9 @@ def _warnings(recipe: ConnectivityRecipe, fit_r_squared: float) -> list[WarningM
                 "This undirected estimator summarizes statistical dependence in this band; "
                 "it is not a synapse, structural pathway, or proof of direction."
             ),
-            suggestion="Compare the estimate with the planted latent graph after revealing truth.",
+            suggestion=(
+                "Compare the estimate with the configured source graph and the saved A/B settings."
+            ),
         )
     ]
     if recipe.analysis_space == "sensor":
@@ -370,6 +402,7 @@ def run_connectivity_challenge(recipe: ConnectivityRecipe) -> ConnectivityResult
         recipe=recipe,
         warnings=_warnings(recipe, spectrum.parameterization.r_squared),
         spectrum=spectrum,
+        simulation=_preview(data, recipe),
         latent=_matrix(LATENT_NAMES, latent, "latent", recipe),
         sensor=_matrix(SENSOR_NAMES, sensor, "sensor", recipe),
         selected=_matrix(selected_names, selected_values, recipe.analysis_space, recipe),

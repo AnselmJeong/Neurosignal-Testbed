@@ -1,17 +1,19 @@
 id: connectivity.volume-conduction
-version: 1.0.0
-title: When does a sensor edge lie?
-objective: Compare zero-lag and lag-sensitive sensor estimates with the same planted latent graph.
+version: 1.1.0
+title: From sources to sensor edges
+objective: Follow four virtual source rhythms into sensor EEG, then compare estimates under two controlled settings.
 recipe: fixtures/recipes/connectivity-volume-conduction.json
 controls:
   unlocked: [metric, analysis_space, phase_lag_deg, coupling_strength, volume_conduction, epoch_count]
-prediction_prompt: Will a one-edge latent graph produce exactly one edge after broad sensor mixing?
-reveal_policy: deliberate
+prediction_prompt: Will removing the frontal shared component also remove every sensor-space edge?
+reveal_policy: visible_from_start
 checkpoints:
-  - compare_welch_multitaper_and_specparam
-  - inspect_raw_and_thresholded_sensor_matrix
-  - inspect_scalp_and_circle_networks
-  - compare_coherence_with_lag_sensitive_metric
-  - reveal_one_edge_latent_truth
-reflection: Explain why a sensor-space edge is neither a source edge nor evidence of causality.
-engine_version: 0.2.0
+  - identify_four_sources_and_the_frontal_shared_pair
+  - generate_and_inspect_actual_source_and_sensor_epoch
+  - estimate_all_epochs_and_save_baseline_a
+  - change_one_setting_from_a_generate_and_estimate_b
+  - compare_fixed_scale_matrices_and_thresholded_scalp_maps
+  - inspect_b_minus_a_with_separate_symmetric_scale
+  - distinguish_source_estimates_from_sensor_estimates
+reflection: Explain why equal alpha frequency is not connectivity and why a sensor edge is not a source pathway.
+engine_version: 0.2.5

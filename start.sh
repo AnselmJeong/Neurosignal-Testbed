@@ -21,6 +21,45 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
+release_port() {
+  local port="$1"
+  local pids pid attempt
+
+  pids="$(lsof -nP -tiTCP:"$port" -sTCP:LISTEN | sort -u)" || true
+  if [[ -z "$pids" ]]; then
+    return
+  fi
+
+  echo "Stopping existing listeners on port $port..."
+  while IFS= read -r pid; do
+    kill -TERM "$pid" 2>/dev/null || true
+  done <<< "$pids"
+
+  for attempt in {1..50}; do
+    if ! lsof -nP -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      return
+    fi
+    sleep 0.1
+  done
+
+  echo "Port $port is still in use; forcing the original listeners to stop..."
+  while IFS= read -r pid; do
+    if lsof -nP -a -p "$pid" -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      kill -KILL "$pid" 2>/dev/null || true
+    fi
+  done <<< "$pids"
+
+  for attempt in {1..20}; do
+    if ! lsof -nP -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      return
+    fi
+    sleep 0.1
+  done
+
+  echo "Cannot free port $port; startup stopped." >&2
+  return 1
+}
+
 cd "$project_root"
 
 if ! command -v uv >/dev/null 2>&1; then
@@ -38,6 +77,11 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v lsof >/dev/null 2>&1; then
+  echo "lsof is required to stop existing listeners on ports 5174 and 8001." >&2
+  exit 1
+fi
+
 echo "Syncing Python dependencies..."
 uv sync --extra dev --extra ica
 
@@ -45,6 +89,9 @@ if [[ ! -d "$web_dir/node_modules" ]]; then
   echo "Installing web dependencies..."
   npm --prefix "$web_dir" ci
 fi
+
+release_port 5174
+release_port 8001
 
 echo "Starting API at $api_url ..."
 # Invoke Uvicorn as a module so a repository rename cannot leave us dependent

@@ -788,3 +788,60 @@ Do not begin high-resolution source modeling or desktop packaging before items 1
 [^2]: Blackboard. “Electrobun documentation.” https://blackboard.sh/electrobun/docs/
 
 [^3]: Tauri contributors. “Embedding external binaries.” _Tauri v2 documentation_. https://v2.tauri.app/develop/sidecar/
+
+## EEG browser integration · 2026-09-05
+
+Use EEG-Tracer (`@neurosignal/trace-viewer`) for EEG browsing, including ICA sensor input, component time courses, and before/after comparisons. Keep time/series adaptation in the consumer; the shared component owns navigation, rendering, and locked comparison gain. ICA activations retain arbitrary units. Frequency-domain plots remain analytical charts. Source-model sensor EEG and Sampling raw/processed comparisons also use the shared browser. Real-data browsing already uses the same package. Validate the ICA flow, comparison channels, and production build.
+
+EEG browser height follows the available viewport: reserve header/readout space, stretch the viewer through each parent, and allocate the remaining height to the trace stage. ICA input must not leave an unused grid row; IC and Source views must not center a short viewer. Real-data review must not fix its trace stage to 480px. Verify rendered stage growth at multiple desktop heights.
+
+## Connectivity teaching flow · 2026-09-05
+
+Scope: replace the hidden-truth challenge with an explicit generative lesson: configured
+four-source alpha network → actual simulated source/sensor traces → connectivity estimates
+→ frozen A/B comparison. Explain the shared oscillatory component, phase offset, independent
+posterior sources, field spread, reference, and each metric next to their controls. Separate
+signal generation from estimation; both must use the same deterministic simulation. Use the
+shared EEG browser with arbitrary units and an explicitly identified example epoch. Keep
+advanced spectra, null distributions, and latent-space estimates available after the primary
+sensor comparison. Preserve completed A when changing B; label drafts and in-flight work,
+use identical plot scales, report all changed settings, and retain results on errors. No fake
+progress or claim that sensor edges are anatomical truth. Validate preview/estimator identity,
+controlled changes, A/B state and error behavior, API contracts, frontend build, and browser UI.
+
+
+Connectivity follow-up: distinguish the four virtual sources from the eight scalp sensors,
+show schematic front/back positions, and explain the frontal shared pair before any estimator.
+Use the pairwise matrix as the default with matching sequential 0–1 colors on scalp edges;
+mask self-pairs, disclose threshold filtering, and show B−A on a separate symmetric −1…+1
+scale only for the same metric/band. Never label raw coherence as a normative Z-score.
+
+
+Connectivity contrast adjustment: on user request, replace monochrome strength encoding with
+blue → cyan → yellow → orange → red across the fixed 0–1 range in matrices, scalp edges, and
+legends. Emphasize stronger edges with a fixed nonlinear thickness scale and show representative
+widths in the legend. Draw stronger edges last so crossing weak edges do not obscure them.
+
+## Shared A/B measurement settings · 2026-09-05
+
+Metric and spectral mode describe measurement, not EEG generation. Changing either re-estimates
+saved A and (when present) saved B using their respective original signal settings and the new
+shared measurement setting. Publish both results atomically; on any failure retain the previous
+pair and restore the selector. Preserve unestimated B signal edits/preview. Changing measurement
+before the first estimate must not require another EEG generation. Verify A-only, A/B, pending
+draft, failure/partial completion, and exact signal identity across metric changes.
+
+Source graph orientation: map each named source to its matching quadrant (FL upper left,
+FR upper right, PL lower left, PR lower right), show front/back and left/right guides,
+and preserve matrix order and edge identity. The circle remains a schematic top view.
+
+Source setting visualization: add fading field halos with a shared, fixed radius mapping
+to the live generator and saved source graphs. Label these as schematic mixing footprints,
+not anatomical source size or measured connectivity. Keep phase offset as a setting label; on user review, remove the extra phase waveform
+figure and its explanation block. Preserve saved A/B recipes. Verify live field updates
+and rendered layout; leave the simulator intact.
+
+Comparison layout: enlarge each saved settings diagram from 145px to 280px high
+(620px maximum width) in both Matrix and Scalp map views. Limit each heatmap to 90%
+of its column and at most 420px, and remove the matrix container's
+minimum height so smaller matrices do not leave artificial blank space. Keep A/B sizes equal.

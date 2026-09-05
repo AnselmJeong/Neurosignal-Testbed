@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { ConnectivityEdge, ConnectivityMatrix } from '../types'
-import { CircleNetwork, ConnectivityHeatmap } from './ConnectivityViews'
+import { CircleNetwork, ConnectivityDifference, ConnectivityHeatmap, ScalpNetwork, connectivityColor } from './ConnectivityViews'
 
 const matrix = {
   node_names: ['Frontal L', 'Frontal R', 'Posterior L', 'Posterior R'],
@@ -50,4 +50,21 @@ describe('connectivity visualizations', () => {
     expect(screen.getByRole('img', { name: /circular network with 1 edges/i })).toBeVisible()
     expect(document.querySelector('.network-edge.true-edge')).not.toBeNull()
   })
+})
+
+
+it('uses the matrix weight color for sensor edges and excludes undetected edges', () => {
+  const { container } = render(<ScalpNetwork matrix={{ ...matrix, space: 'sensor' }} edges={[{ ...edges[0]!, is_true: null }, { source: 'Frontal R', target: 'Posterior R', weight: 0.1, detected: false, is_true: null }]} threshold={0.4} truthVisible={false} />)
+  const lines = container.querySelectorAll('.network-edge')
+  expect(lines).toHaveLength(1)
+  expect(lines[0]).toHaveStyle({ stroke: connectivityColor(0.72) })
+})
+
+it('shows signed B minus A values with a separate symmetric scale', () => {
+  const b = { ...matrix, values: matrix.values.map(row => row.map(value => value / 2)) }
+  render(<ConnectivityDifference a={matrix} b={b} />)
+  expect(screen.getByRole('img', { name: /fixed scale minus 1 to plus 1/ })).toBeVisible()
+  expect(screen.getByTitle('Frontal L – Frontal R: B − A = -0.360')).toHaveTextContent('-0.36')
+  expect(screen.getByText('−1 · decreased')).toBeVisible()
+  expect(screen.getByText('+1 · increased')).toBeVisible()
 })

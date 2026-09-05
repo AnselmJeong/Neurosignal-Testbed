@@ -170,15 +170,19 @@ def _fit(recipe: IcaRecipe) -> FittedIca:
         output="sos",
     )
     filtered_truth = signal.sosfiltfilt(truth_sos, simulation.latent_uv, axis=-1)
-    standardized_truth = filtered_truth - filtered_truth.mean(axis=1, keepdims=True)
-    standardized_truth /= np.maximum(
-        standardized_truth.std(axis=1, keepdims=True), np.finfo(float).eps
-    )
+    centered_truth = filtered_truth - filtered_truth.mean(axis=1, keepdims=True)
+    truth_scale = centered_truth.std(axis=1)
+    active_truth_indices = np.flatnonzero(truth_scale > np.finfo(float).eps)
+    standardized_truth = centered_truth[active_truth_indices]
+    standardized_truth /= truth_scale[active_truth_indices, None]
     correlations = np.abs(standardized_components @ standardized_truth.T / time_s_count(recipe))
     component_rows, truth_columns = linear_sum_assignment(-correlations)
     assignment = {
-        int(component): (int(truth), float(correlations[component, truth]))
-        for component, truth in zip(component_rows, truth_columns, strict=True)
+        int(component): (
+            int(active_truth_indices[truth_column]),
+            float(correlations[component, truth_column]),
+        )
+        for component, truth_column in zip(component_rows, truth_columns, strict=True)
     }
     compatibility = IcaCompatibility(
         fingerprint=_compatibility_fingerprint(recipe, rank),
@@ -307,7 +311,7 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
             fs=recipe.sampling_rate_hz,
             nperseg=min(source.size, recipe.sampling_rate_hz * 2),
         )
-        truth_index, correlation = fitted.assignment.get(index, (index, 0.0))
+        truth_match = fitted.assignment.get(index)
         component_topography = topographies[:, index]
         component_topography /= max(np.max(np.abs(component_topography)), np.finfo(float).eps)
         variance_ratio = fitted.ica.get_explained_variance_ratio(
@@ -319,8 +323,8 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
                 suggested_label=suggestions[index],
                 suggestion_probability=probabilities[index],
                 explained_variance_pct=round(float(variance_ratio * 100), 2),
-                matched_truth=TRUTH_LABELS[truth_index],
-                matched_correlation=round(correlation, 4),
+                matched_truth=None if truth_match is None else TRUTH_LABELS[truth_match[0]],
+                matched_correlation=None if truth_match is None else round(truth_match[1], 4),
                 time_s=np.round(fitted.simulation.time_s[view], 4).tolist(),
                 trace=np.round(source[view], 5).tolist(),
                 frequency_hz=np.round(frequency, 4).tolist(),
@@ -329,7 +333,12 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
             )
         )
     blink_component = next(
-        index for index, (truth, _) in fitted.assignment.items() if TRUTH_LABELS[truth] == "blink"
+        (
+            index
+            for index, (truth, _) in fitted.assignment.items()
+            if TRUTH_LABELS[truth] == "blink"
+        ),
+        None,
     )
     recipe_hash = hashlib.sha256(recipe.model_dump_json().encode()).hexdigest()[:12]
     raw_view = fitted.simulation.raw_sensor_uv[0, view]

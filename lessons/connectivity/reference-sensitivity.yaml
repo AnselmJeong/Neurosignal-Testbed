@@ -1,17 +1,17 @@
 id: connectivity.reference-sensitivity
-version: 1.0.0
+version: 1.1.0
 title: Same sources, different network?
 objective: Hold latent activity fixed while comparing average and no-reference sensor networks.
 recipe: fixtures/recipes/connectivity-reference-sensitivity.json
 controls:
   unlocked: [reference, metric, analysis_space, volume_conduction, epoch_count]
 prediction_prompt: Which sensor edges will move when only the reference changes, and why is the latent graph unchanged?
-reveal_policy: deliberate
+reveal_policy: visible_from_start
 checkpoints:
-  - run_no_reference_baseline
-  - switch_to_average_reference
+  - generate_source_and_sensor_eeg_and_save_baseline_a
+  - switch_reference_generate_and_estimate_b
   - compare_against_same_null_policy
   - compare_sensor_and_latent_spaces
   - state_reference_dependence_in_words
 reflection: Explain why connectivity runs with inconsistent references cannot be compared as if preprocessing were identical.
-engine_version: 0.2.0
+engine_version: 0.2.5

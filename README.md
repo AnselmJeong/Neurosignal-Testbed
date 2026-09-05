@@ -28,21 +28,50 @@ reports artifact attenuation plus neural distortion only after the learner appli
 The pinned default fixture recovers the blink above 0.95 source correlation while retaining more
 than 80% of the neural control signal.
 
-The connectivity challenge plants one lagged alpha-band edge in a four-node latent graph, projects
-the sources into eight mixed scalp sensors, and estimates Pearson correlation, coherence, imaginary
-coherence, PLV, PPC, PLI, or wPLI. Spectral estimators use MNE-Connectivity; Welch and multitaper
-PSDs are shown beside a linear-input specparam
-fit. Every edge is evaluated against the 95th percentile of epoch-shuffled maximum-edge surrogates;
-the UI coordinates matrix, scalp, circle, spectrum, and null-distribution views while keeping
-functional connectivity distinct from causality. Volume-conduction and reference-sensitivity lesson
-fixtures preserve the same latent graph for direct comparison.
+The connectivity lesson starts with four explicitly named virtual sources: Frontal L/R and
+Posterior L/R. All contain alpha oscillations, but only the frontal pair shares a controllable
+phase component; these are schematic locations, not anatomical coordinates. Generate EEG first
+(`POST /connectivity/simulate`) to inspect an actual example epoch before estimating across all
+epochs (`POST /connectivity/runs`). The preview and estimator use identical deterministic input.
+Traces use arbitrary units, not calibrated microvolts.
+
+The first completed estimate is saved as A. Change coupling, phase offset, field spread, or
+reference, then generate and estimate B. Shortcuts reset to A and change exactly one setting.
+A/B matrices use identical channel order and a fixed blue–yellow–red 0–1 color scale; scalp maps
+use the same weight colors, emphasize strong edges with a fixed nonlinear width scale, and show only edges above each run's own shuffled-null threshold.
+A B−A matrix uses a separate symmetric −1 to +1 scale, with exact changes listed below.
+Metric and spectral mode are shared measurement settings: changing either automatically
+re-estimates saved A and B on identical seeded EEG and replaces the pair together. Failures
+restore the previous pair and selector. Draft B signal edits and previews remain available.
+Before the first estimate, metric changes reuse the generated EEG. Source-space estimates are computed from original
+simulation sources, not inverse-reconstructed EEG. Controls and old results retain separate
+settings while a new run is pending or fails.
+
+Spectral metrics (coherence, imaginary coherence, PLV, PPC, PLI, wPLI) use MNE-Connectivity.
+The existing engine displays absolute values, including broadband Pearson |r| and PPC magnitude;
+these conventions are stated beside the metric selector. Coherence is the magnitude of
+coherency, not magnitude-squared coherence. Advanced diagnostics retain the source Welch and
+multitaper spectra, specparam fit, and space-specific shuffled nulls. Connectivity never implies
+an anatomical or causal connection.
 
 The source-modeling lab uses an explicitly illustrative 14-channel standard 10–20 spherical
 volume template. It plants four ROI-proxy time courses, projects them with MNE's EEG forward
-solution, reconstructs them with a locked minimum-norm inverse, and exposes reconstructed ROI
-traces, forward lead fields, location error, and the MNE source-resolution cross-talk matrix.
-The lesson labels this geometry as non-individualized throughout: source recovery is benchmarked
-against planted simulation truth, and leakage is a required interpretation checkpoint.
+solution, and reconstructs every candidate with minimum norm. The default 20 mm grid has 250
+locations; a 40 mm / 26-point grid remains available for comparison. Inference accepts EEG,
+forward geometry and analysis settings only. Fixed theta (4–8), alpha (8–13), beta (13–30)
+and broadband (4–30 Hz) maps integrate Hann-periodogram power in nAm². Spatial local maxima
+pass a relative threshold and distance suppression; neither four peaks nor known waveforms
+are supplied to detection. Users can inspect any candidate's current and average-referenced
+forward map before revealing truth.
+
+After inference, one-to-one spatial matching within each nonoverlapping frequency band uses
+a declared 40 mm tolerance. Reveal shows matched distances, missed sources and unmatched
+peaks; no matches yield null errors rather than zero. Broadband is exploratory and not scored
+twice. Truth-coordinate waveform correlation and resolution-matrix leakage are explicitly
+post-reveal diagnostics. The old oracle waveform matching and benchmark-pass badge are removed.
+Relative peak thresholds are descriptive, not significance tests. This fixed-orientation sphere
+shares forward/inverse geometry and does not test individual anatomy or head-model mismatch.
+See [source_localization_plan.md](source_localization_plan.md) for the implementation boundary.
 
 The real-data lab opens FIF, EDF/BDF, BrainVision, or EEGLAB recordings read-only, surfaces
 format/channel/filter/annotation/digitization evidence, and writes only a separate local FIF

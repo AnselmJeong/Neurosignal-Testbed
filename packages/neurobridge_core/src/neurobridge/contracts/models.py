@@ -172,8 +172,8 @@ class IcaComponentSummary(ContractModel):
     suggested_label: str
     suggestion_probability: float
     explained_variance_pct: float
-    matched_truth: str
-    matched_correlation: float
+    matched_truth: str | None
+    matched_correlation: float | None
     time_s: list[float]
     trace: list[float]
     frequency_hz: list[float]
@@ -209,7 +209,7 @@ class IcaFitResult(ContractModel):
     raw_trace: SeriesData
     components: list[IcaComponentSummary]
     compatibility: IcaCompatibility
-    blink_component_index: int
+    blink_component_index: int | None
     mean_matched_correlation: float
     icalabel_available: bool
     provenance: Provenance
@@ -318,12 +318,23 @@ class ConnectivityScores(ContractModel):
     weighted_truth_correlation: float
 
 
+class ConnectivitySimulation(ContractModel):
+    """One actual example epoch from the deterministic analysis input, in arbitrary units."""
+
+    recipe: ConnectivityRecipe
+    epoch_index: int = 0
+    latent_trace: SeriesData
+    sensor_trace: SeriesData
+    mixing_matrix: list[list[float]]
+
+
 class ConnectivityResult(ContractModel):
     run_id: str
     state: Literal["completed", "failed"]
     recipe: ConnectivityRecipe
     warnings: list[WarningMessage]
     spectrum: SpectrumComparison
+    simulation: ConnectivitySimulation
     latent: ConnectivityMatrix
     sensor: ConnectivityMatrix
     selected: ConnectivityMatrix
@@ -347,6 +358,12 @@ class ConnectivityResult(ContractModel):
     provenance: Provenance
 
 
+class SourceInverseSettings(ContractModel):
+    lambda2: float = Field(default=1 / 9, ge=0.0001, le=10)
+    peak_threshold: float = Field(default=0.35, ge=0.05, le=1)
+    peak_separation_mm: float = Field(default=40, ge=20, le=100)
+
+
 class SourceModelRecipe(ContractModel):
     """Constrained educational source-modeling recipe.
 
@@ -366,6 +383,8 @@ class SourceModelRecipe(ContractModel):
     sensor_noise_uv: float = Field(default=0.08, ge=0, le=5.0)
     inverse_method: Literal["MNE"] = "MNE"
     montage: Literal["standard_1020_14"] = "standard_1020_14"
+    grid_spacing_mm: Literal[20, 40] = 20
+    inverse: SourceInverseSettings = Field(default_factory=SourceInverseSettings)
 
     @model_validator(mode="after")
     def valid_source_model_recipe(self) -> SourceModelRecipe:
@@ -378,6 +397,9 @@ class SourceRoi(ContractModel):
     id: str
     label: str
     position_mm: tuple[float, float, float]
+    frequency_hz: float
+    amplitude_nam: float
+    phase_deg: float
 
 
 class SourceTopography(ContractModel):
@@ -389,12 +411,65 @@ class SourceTopography(ContractModel):
 class SourceReconstructionScores(ContractModel):
     mean_roi_correlation: float
     roi_correlations: dict[str, float]
-    mean_location_error_mm: float
-    max_location_error_mm: float
-    location_error_mm: dict[str, float]
     max_roi_cross_talk: float
     leakage_matrix: list[list[float]]
-    benchmark_passed: bool
+
+
+class SourcePeak(ContractModel):
+    id: str
+    vertex_index: int
+    position_mm: tuple[float, float, float]
+    power_nam2: float
+    relative_power: float
+
+
+class SourcePowerMap(ContractModel):
+    id: str
+    label: str
+    low_hz: float
+    high_hz: float
+    power_nam2: list[float]
+    relative_power: list[float]
+    peaks: list[SourcePeak]
+
+
+class SourceMatch(ContractModel):
+    roi_id: str
+    peak_id: str
+    distance_mm: float
+
+
+class SourceBandEvaluation(ContractModel):
+    band_id: str
+    matches: list[SourceMatch]
+    missed_roi_ids: list[str]
+    unmatched_peak_ids: list[str]
+    mean_error_mm: float | None
+
+
+class SourceEvaluation(ContractModel):
+    match_radius_mm: float = 40
+    bands: list[SourceBandEvaluation]
+    matched_count: int
+    missed_count: int
+    unmatched_peak_count: int
+    mean_error_mm: float | None
+    max_error_mm: float | None
+    outside_band_roi_ids: list[str] = Field(default_factory=list)
+
+
+class SourceModelSimulation(ContractModel):
+    """Forward-projected EEG before any source reconstruction is requested."""
+
+    run_id: str
+    state: Literal["completed", "failed"]
+    recipe: SourceModelRecipe
+    template_description: str
+    rois: list[SourceRoi]
+    candidate_positions_mm: list[tuple[float, float, float]]
+    sensor_trace: SeriesData
+    sensor_positions: list[tuple[float, float]]
+    provenance: Provenance
 
 
 class SourceModelResult(ContractModel):
@@ -406,6 +481,10 @@ class SourceModelResult(ContractModel):
     forward_method: str
     inverse_method: str
     rois: list[SourceRoi]
+    candidate_positions_mm: list[tuple[float, float, float]]
+    power_maps: list[SourcePowerMap]
+    candidate_time_courses: SeriesData
+    evaluation: SourceEvaluation
     sensor_trace: SeriesData
     latent_roi_time_courses: SeriesData
     reconstructed_roi_time_courses: SeriesData

@@ -944,7 +944,7 @@ wheels = [
 
 [[package]]
 name = "neurosignal-testbed"
-version = "0.2.0"
+version = "0.2.5"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

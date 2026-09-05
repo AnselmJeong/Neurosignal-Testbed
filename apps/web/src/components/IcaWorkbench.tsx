@@ -60,6 +60,14 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
   const [pipeline, setPipeline] = useState<PipelineState>({ status: 'idle' })
   const [step, setStep] = useState(0)
 
+  const hasPlantedBlink = recipe.blink_amplitude_uv > 0
+  const lessonSteps = useMemo(() => hasPlantedBlink ? ICA_STEPS : ICA_STEPS.map((item, index) => {
+    if (index === 0) return { ...item, description: 'Create sensor EEG without a planted artifact.' }
+    if (index === 1) return { ...item, description: 'Confirm that no blink appears in the sensors.' }
+    if (index === 4) return { ...item, description: 'Decide whether any component should be removed.' }
+    if (index === 5) return { ...item, description: 'Measure the cost of unnecessary removal.' }
+    return item
+  }), [hasPlantedBlink])
   const component = fit?.components.find((item) => item.index === selectedComponent) ?? fit?.components[0]
   const isBusy = pipeline.status === 'generating' || pipeline.status === 'fitting' || pipeline.status === 'applying'
   const isComparison = Boolean(applied && view === 'Before / after')
@@ -179,22 +187,30 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
     }
   }
 
+  const hasTruthMatch = Boolean(component && component.matched_truth !== null && component.matched_correlation !== null)
   const activeMatch = truthVisible && component
-    ? `${component.matched_truth} · r ${component.matched_correlation.toFixed(2)}`
+    ? hasTruthMatch
+      ? `${component.matched_truth} · r ${component.matched_correlation?.toFixed(2)}`
+      : 'No planted source'
     : 'Hidden until reveal'
 
   const scoreJudgement = useMemo(() => {
     if (!applied) return 'Apply a manual exclusion to score the repair.'
+    if (!hasPlantedBlink) {
+      return applied.neural_distortion_pct < 10
+        ? 'The exclusion changed little, but there was no planted artifact to recover.'
+        : 'The exclusion removed clean simulated signal even though no artifact was present.'
+    }
     if (applied.artifact_attenuation_db > 25 && applied.neural_distortion_pct < 20) {
       return 'The blink-related pattern was strongly reduced with a relatively small change to the known clean signal.'
     }
     return 'The trade-off needs review; attenuation alone is not enough.'
-  }, [applied])
+  }, [applied, hasPlantedBlink])
 
   return (
     <>
       <main className="workspace ica-workspace">
-        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={ICA_STEPS} step={step} />
+        <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={lessonSteps} step={step} />
 
         <aside className="control-panel ica-controls">
           <div className="panel-heading">
@@ -285,9 +301,9 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
                 <section>
                   <span className="eyebrow">Step 1 · prepare the input</span>
                   <h3>Start with the EEG you will clean.</h3>
-                  <p>The recipe on the left creates three neural sources and a blink, then mixes them into eight sensor channels. Generate that signal before fitting ICA.</p>
+                  <p>{hasPlantedBlink ? 'The recipe on the left creates three neural sources and a blink, then mixes them into eight sensor channels.' : 'The control recipe creates three neural sources with no blink artifact, then mixes them into eight sensor channels.'} Generate that signal before fitting ICA.</p>
                   <dl className="ica-input-spec">
-                    <div><dt>Sources</dt><dd>alpha · theta · beta · blink</dd></div>
+                    <div><dt>Sources</dt><dd>{hasPlantedBlink ? 'alpha · theta · beta · blink' : 'alpha · theta · beta · no artifact'}</dd></div>
                     <div><dt>Sensors</dt><dd>8 EEG channels</dd></div>
                     <div><dt>Duration</dt><dd>{recipe.duration_s.toFixed(0)} s at {recipe.sampling_rate_hz} Hz</dd></div>
                     <div><dt>Reference</dt><dd>{recipe.reference === 'average' ? 'average' : 'none'}</dd></div>
@@ -298,7 +314,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
                   <h4 id="ica-guide-title">Follow the signal through four steps.</h4>
                   <ol className="ica-sequence" aria-label="ICA lesson sequence">
                     <li><small>01</small><strong>Configure and generate</strong><span>Set the artifact, noise and reference; then create the sensor EEG.</span></li>
-                    <li><small>02</small><strong>Inspect sensor EEG</strong><span>Look across all eight channels for the planted blink.</span></li>
+                    <li><small>02</small><strong>Inspect sensor EEG</strong><span>{hasPlantedBlink ? 'Look across all eight channels for the planted blink.' : 'Confirm that no blink was planted in any channel.'}</span></li>
                     <li><small>03</small><strong>Fit and inspect ICA</strong><span>Fit on copied data and compare each component's evidence.</span></li>
                     <li><small>04</small><strong>Exclude and compare</strong><span>Mark an IC manually, apply it, and review the trade-off.</span></li>
                   </ol>
@@ -309,8 +325,8 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
               <div className="simulated-eeg-view">
                 <div className="simulation-summary">
                   <span><small>EEG BROWSER</small>{simulation.channel_names.length} channels · shared gain</span>
-                  <span><small>PLANTED ARTIFACT</small>{recipe.blink_amplitude_uv} µV blink</span>
-                  <p>Compare the same time window across every sensor. The frontal channels should show the blink most strongly.</p>
+                  <span><small>PLANTED ARTIFACT</small>{hasPlantedBlink ? `${recipe.blink_amplitude_uv} µV blink` : 'none'}</span>
+                  <p>{hasPlantedBlink ? 'Compare the same time window across every sensor. The frontal channels should show the blink most strongly.' : 'This is the clean control: no blink was added. Inspect the sensor noise before fitting ICA.'}</p>
                 </div>
                 <StackedEegBrowser
                   x={simulation.sensor_trace.x}
@@ -344,20 +360,16 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
                     <div className="component-visual">
                       <div className="topography-panel">
                         <ScalpTopography values={component.topography} label={`IC ${component.index + 1}`} />
-                        <div className="scalp-color-key" aria-label="Scalp map color meaning">
-                          <span><i className="positive" />positive weight</span>
-                          <span><i className="negative" />negative weight</span>
-                          <p>Color shows relative weight within this IC—not correlation. The whole map may flip sign.</p>
-                        </div>
+                        <p className="topography-caption">Relative sensor weights · teal + / rust − · polarity may flip</p>
                         <div className="variance-readout">
-                          <small>EEG VARIANCE REPRESENTED</small>
+                          <small>EEG VARIANCE EXPLAINED</small>
                           <strong>{component.explained_variance_pct.toFixed(1)}%</strong>
-                          <p>Share of the fit-copy EEG reconstructed by this IC; not its probability or “brain activity.”</p>
+                          <p>Share of variance in the filtered 8-channel fit-copy EEG explained by this IC alone.</p>
                         </div>
                       </div>
                       <div className="component-chart">
                         {view === 'Component trace' ? (
-                          <LineChart x={component.time_s} series={[{ label: `IC ${component.index + 1}`, values: component.trace, color: '#087f83' }]} xLabel="Time (s)" yLabel="ICA activation (a.u.)" ariaLabel={`Time course for ICA component ${component.index + 1}`} />
+                          <StackedEegBrowser key={component.index} x={component.time_s} series={{ [`IC ${component.index + 1}`]: component.trace }} unit="a.u." ariaLabel={`Time course for ICA component ${component.index + 1}`} />
                         ) : (
                           <LineChart x={component.frequency_hz} series={[{ label: `IC ${component.index + 1} PSD`, values: component.power, color: '#087f83' }]} xDomain={[0, 80]} xLabel="Frequency (Hz)" yLabel="Power (log a.u.)" ariaLabel={`Power spectrum for ICA component ${component.index + 1}`} logY />
                         )}
@@ -398,7 +410,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
           <section className="inspector-lead">
             <span className="eyebrow">{isComparison ? 'Repair result' : component ? 'Component decision' : simulation ? 'Sensor inspection' : 'Before ICA'}</span>
             <h2>{comparisonNeedsRefresh ? 'Rebuild this result.' : isComparison ? 'Check every sensor.' : component ? `IC ${String(component.index + 1).padStart(2, '0')}` : simulation ? 'Look at the mixed EEG.' : 'Generate the input.'}</h2>
-            <p>{comparisonNeedsRefresh ? 'The displayed result came from an older response containing only Fp1. Rebuild it before interpreting the repair.' : isComparison ? 'Dashed rust is the generated input; solid teal is the cleaned output. A good repair reduces the blink without flattening unrelated EEG.' : component ? 'Use time course, spectrum, topography, and the advisory label together. One cue is not enough.' : simulation ? 'The blink is planted most strongly at the frontal sensors. Inspect the EEG before asking ICA to separate it.' : 'Set the artifact and reference on the left. The first result will be sensor EEG, not ICA components.'}</p>
+            <p>{comparisonNeedsRefresh ? 'The displayed result came from an older response containing only Fp1. Rebuild it before interpreting the repair.' : isComparison ? hasPlantedBlink ? 'Dashed rust is the generated input; solid teal is the cleaned output. A good repair reduces the blink without flattening unrelated EEG.' : 'Dashed rust is the clean control input; solid teal is the result after exclusion. Any change is removal cost, not artifact recovery.' : component ? 'Use time course, spectrum, topography, and the advisory label together. One cue is not enough.' : simulation ? hasPlantedBlink ? 'The blink is planted most strongly at the frontal sensors. Inspect the EEG before asking ICA to separate it.' : 'No blink was planted. Inspect the control EEG before asking ICA to decompose it.' : 'Set the artifact and reference on the left. The first result will be sensor EEG, not ICA components.'}</p>
           </section>
 
           {component && !isComparison && (
@@ -412,28 +424,12 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             </section>
           )}
 
-          {component && !isComparison && (
-            <section className="reading-guide">
-              <div className="section-title"><span>How to read this IC</span><small>TERMS</small></div>
-              <dl>
-                <div>
-                  <dt>Scalp colors</dt>
-                  <dd>Teal and rust are positive and negative sensor weights. Stronger color means a larger weight within this IC—not a correlation. Compare locations within one map; ICA polarity can reverse as a whole.</dd>
-                </div>
-                <div>
-                  <dt>Explained variance</dt>
-                  <dd>How much of the filtered fit-copy EEG this component reconstructs by itself. It is not confidence or importance, and IC percentages need not sum to 100%.</dd>
-                </div>
-              </dl>
-            </section>
-          )}
-
           {fit && !isComparison && <section className={`truth-block ${truthVisible ? 'revealed' : ''}`}>
             <div className="truth-heading"><span><EyeOff size={16} /> Component truth</span><span className="truth-state">{truthVisible ? 'REVEALED' : 'HIDDEN'}</span></div>
             {truthVisible && component ? (
               <div className="truth-content">
-                <div className="truth-match"><small>MATCHED SOURCE</small><strong>{activeMatch}</strong></div>
-                <p>Matching uses absolute source correlation after optimal one-to-one assignment. It is available only because this is a simulation.</p>
+                <div className="truth-match"><small>{hasTruthMatch ? 'MATCHED SOURCE' : 'MATCH RESULT'}</small><strong>{activeMatch}</strong></div>
+                <p>{hasTruthMatch ? 'Matching uses absolute source correlation after optimal one-to-one assignment. It is available only because this is a simulation.' : 'No non-zero planted source matched this component. It represents residual sensor noise or decomposition remainder, not a blink.'}</p>
               </div>
             ) : (
               <div className="truth-covered">
@@ -449,25 +445,12 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             </section>
           ))}
 
-          {fit && !isComparison && (
-            <section className="compatibility-block">
-              <div className="section-title"><span>Apply compatibility</span><small>VERIFIED BEFORE APPLY</small></div>
-              <dl>
-                <div><dt>Channels</dt><dd>{fit.compatibility.channel_names.length} · ordered</dd></div>
-                <div><dt>Reference</dt><dd>{fit.compatibility.reference}</dd></div>
-                <div><dt>Bad channels</dt><dd>{fit.compatibility.bad_channels.length}</dd></div>
-                <div><dt>Fit high-pass</dt><dd>{fit.compatibility.fit_highpass_hz} Hz</dd></div>
-                <div><dt>Fingerprint</dt><dd>{fit.compatibility.fingerprint.slice(0, 8)}</dd></div>
-              </dl>
-            </section>
-          )}
-
           {applied && isComparison && comparisonIsComplete && (
             <section className="score-block">
               <span className="eyebrow">Truth score · simulation only</span>
               <div className="score-metric">
-                <strong>{applied.artifact_attenuation_db.toFixed(1)}<small> dB</small></strong>
-                <span><b>Blink-related power reduction</b><small>Log-scale drop in the signal matching the planted blink across sensors. 10 dB means tenfold lower matched power.</small></span>
+                <strong>{hasPlantedBlink ? applied.artifact_attenuation_db.toFixed(1) : applied.neural_distortion_pct.toFixed(1)}<small>{hasPlantedBlink ? ' dB' : '%'}</small></strong>
+                <span><b>{hasPlantedBlink ? 'Blink-related power reduction' : 'Unnecessary signal removal'}</b><small>{hasPlantedBlink ? 'Log-scale drop in the signal matching the planted blink across sensors. 10 dB means tenfold lower matched power.' : 'RMS change relative to the known clean simulation. With no planted artifact, lower is better.'}</small></span>
               </div>
               <div className="score-metric">
                 <strong>{applied.neural_retention_pct.toFixed(1)}<small>%</small></strong>
