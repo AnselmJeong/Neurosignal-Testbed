@@ -35,7 +35,7 @@ from neurobridge.contracts.models import (
 from neurobridge.ica import apply_ica_exclusions, fit_ica_workbench, simulate_ica_input
 from neurobridge.module_registry import capability_manifest
 from neurobridge.preprocessing import validate_recipe
-from neurobridge.qeeg_lab import QeegLabRecipe, run_qeeg_lab
+from neurobridge.qeeg_lab import QeegLabRecipe, generate_qeeg_eeg, run_qeeg_lab
 from neurobridge.real_data import (
     default_project_root,
     eegbci_lesson_status,
@@ -196,6 +196,11 @@ def get_run(run_id: str) -> ExperimentResult:
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail="Run not found")
     return RUNS[run_id]
+
+
+@app.post("/qeeg/eeg")
+def generate_qeeg_recording(recipe: QeegLabRecipe):
+    return generate_qeeg_eeg(recipe)
 
 
 @app.post("/qeeg/simulate")

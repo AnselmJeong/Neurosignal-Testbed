@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Activity, Brain, ChartNoAxesCombined, Download, Map, Play, Users } from 'lucide-react'
-import { defaultQeegRecipe, simulateQeeg, type QeegRecipe, type QeegResult } from '../lib/qeeg'
+import { defaultQeegRecipe, generateQeegEeg, simulateQeeg, type QeegRecipe, type QeegResult, type QeegSimulation } from '../lib/qeeg'
 import { LabNavigator, type LabId } from './LabNavigator'
 import { ImportedQeegWorkbench } from './ImportedQeegWorkbench'
 import { LineChart } from './Charts'
@@ -27,10 +27,14 @@ const LESSONS: Record<View, { title: string; text: string; experiment: string }>
 }
 
 export function QeegWorkbench(props: { activeLab: LabId; onLabChange: (lab: LabId) => void }) {
+  const canvasRef = useRef<HTMLElement>(null)
   const [recipe, setRecipe] = useState<QeegRecipe>({ ...defaultQeegRecipe })
   const [result, setResult] = useState<QeegResult | null>(null)
-  const [view, setView] = useState<View>('Atlas')
-  const [busy, setBusy] = useState(false)
+  const [simulation, setSimulation] = useState<QeegSimulation | null>(null)
+  const [view, setView] = useState<View>('EEG')
+  const [pending, setPending] = useState<'eeg' | 'maps' | null>(null)
+  const [failedStep, setFailedStep] = useState<'eeg' | 'maps'>('eeg')
+  const busy = pending !== null
   const [error, setError] = useState('')
   const [imported, setImported] = useState(false)
   const [channel, setChannel] = useState('O1')
@@ -41,21 +45,25 @@ export function QeegWorkbench(props: { activeLab: LabId; onLabChange: (lab: LabI
   const [normMetric, setNormMetric] = useState<'absolute' | 'relative' | 'theta_beta'>('absolute')
   const [band, setBand] = useState(2)
   const [connection, setConnection] = useState<'coherence' | 'plv'>('coherence')
-  const dirty = !!result && JSON.stringify(recipe) !== JSON.stringify(result.recipe)
-  async function run() {
-    setBusy(true); setError('')
-    try { setResult(await simulateQeeg(recipe)) }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Simulation failed.') }
-    finally { setBusy(false) }
+  const dirty = !!simulation && JSON.stringify(recipe) !== JSON.stringify(simulation.recipe)
+  async function generate() {
+    if (busy) return
+    setPending('eeg'); setError(''); setResult(null); setView('EEG')
+    try { setSimulation(await generateQeegEeg(recipe)); setView('EEG') }
+    catch (cause) { setFailedStep('eeg'); setError(cause instanceof Error ? cause.message : 'EEG generation failed.') }
+    finally { setPending(null) }
+  }
+  async function generateMaps() {
+    if (!simulation || dirty || busy) return
+    setPending('maps'); setError('')
+    try { setResult(await simulateQeeg(simulation.recipe)); setView('Atlas') }
+    catch (cause) { setFailedStep('maps'); setError(cause instanceof Error ? cause.message : 'QEEG analysis failed.') }
+    finally { setPending(null) }
   }
   useEffect(() => {
-    let active = true
-    setBusy(true)
-    simulateQeeg(defaultQeegRecipe).then((next) => { if (active) setResult(next) })
-      .catch((cause: Error) => { if (active) setError(cause.message) })
-      .finally(() => { if (active) setBusy(false) })
-    return () => { active = false }
-  }, [])
+    // Generating from controls below the fold should bring the completed output into view.
+    if (simulation) canvasRef.current?.scrollIntoView?.({ block: 'start' })
+  }, [simulation, result])
   function update<K extends keyof QeegRecipe>(key: K, value: QeegRecipe[K]) { setRecipe((current) => ({ ...current, [key]: value })) }
   function download() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' }))
@@ -88,19 +96,28 @@ export function QeegWorkbench(props: { activeLab: LabId; onLabChange: (lab: LabI
             <label className="ql-number">Cohort seed<input type="number" min={0} max={4294967295} value={recipe.cohort_seed} onChange={(e) => update('cohort_seed', Math.max(0, Math.min(4294967295, Math.round(Number(e.target.value)))))} /></label>
           </section>
         </fieldset>
-        <button className="primary-button ql-run" disabled={busy} onClick={run}><Play size={14} />{busy ? 'Simulating EEG + peers…' : dirty ? 'Regenerate with changes' : 'Generate EEG + maps'}</button>
+        <div className="source-run-actions">
+          <button className="primary-button" disabled={busy} onClick={generate}><Play size={15} />{pending === 'eeg' ? '1 · Generating EEG…' : '1 · Generate EEG'}</button>
+          <button className="source-estimate-button" disabled={!simulation || dirty || busy} onClick={generateMaps}><Map size={15} />{pending === 'maps' ? '2 · Generating QEEG maps…' : '2 · Generate QEEG maps'}</button>
+        </div>
+        <p className="ql-fixed" role="status">{pending === 'eeg' ? 'Building the multichannel recording…' : pending === 'maps' ? 'Calculating spectra, metrics and synthetic peers…' : dirty ? 'Settings changed. Generate EEG again before making maps.' : result ? 'Maps ready. Explore power, metrics and synthetic norms.' : simulation ? 'EEG ready. Inspect the traces, then generate QEEG maps.' : 'Start with Generate EEG, then generate QEEG maps.'}</p>
         <p className="ql-fixed">128 Hz · 32 s · 1/f background<br />Artifact-free teaching example; no ICA needed.</p>
         <button className="quiet-button" onClick={() => setImported(true)}>Advanced: imported EEG</button>
       </aside>
-      <section className="canvas-panel ql-canvas">
+      <section ref={canvasRef} className="canvas-panel ql-canvas">
         <header className="ql-toolbar"><div><span className="eyebrow">Synthetic EEG · educational use</span><h2>{view === 'Atlas' ? 'The frequency atlas' : view === 'Norms' ? 'A reference built in the open' : view === 'Geometry' ? 'From dipoles to electrodes' : view === 'Metrics' ? 'Inside the calculation' : 'The multichannel recording'}</h2></div><button className="quiet-button" disabled={!result || busy} onClick={download}><Download size={14} /> JSON</button></header>
-        <div className="ql-tabs" role="tablist" aria-label="QEEG lesson views">{VIEWS.map((item, i) => <button role="tab" aria-selected={item === view} key={item} onClick={() => setView(item)}>{String(i + 1).padStart(2, '0')} {item}</button>)}</div>
-        {dirty && <p className="ql-status" role="status">Controls changed. The figures still show the last generated recipe; regenerate to apply.</p>}
-        {error && <p className="ql-error" role="alert">{error} <button onClick={run} disabled={busy}>Retry</button></p>}
+        <div className="view-tabs ql-tabs" role="tablist" aria-label="QEEG lesson views">{VIEWS.map((item) => <button role="tab" aria-selected={item === view} className={item === view ? 'active' : ''} disabled={busy || (item === 'EEG' || item === 'Geometry' ? !simulation : !result)} key={item} onClick={() => setView(item)}>{item}</button>)}</div>
+        {dirty && <p className="ql-status" role="status">Settings changed. The figures show the previous recording. Generate EEG again to apply your changes.</p>}
+        {error && <p className="ql-error" role="alert">{error} <button onClick={failedStep === 'eeg' ? generate : generateMaps} disabled={busy || (failedStep === 'maps' && dirty)}>Retry</button></p>}
         <div className="ql-stage" aria-busy={busy}>
-          {!result && <div className="ql-loading"><Activity size={28} /><h3>{busy ? 'Generating the subject and reference peers…' : 'Ready to build a virtual recording.'}</h3><p>Six dipoles, a spherical head model, and a reproducible spectral recipe.</p></div>}
-          {result && view === 'EEG' && <><p className="ql-caption">First 10 s of {result.channel_names.length}-channel simulated EEG · µV · {result.recipe.reference.replace('_', ' ')}</p><StackedEegBrowser x={result.time_s} series={Object.fromEntries(result.channel_names.map((name, i) => [name, result.eeg_uv[i]!]))} ariaLabel="Simulated QEEG multichannel recording" /></>}
-          {result && view === 'Geometry' && <Geometry result={result} />}
+          {!simulation && <div className="empty-stage">
+            <div className="empty-wave" aria-hidden="true"><Activity size={42} /></div>
+            <span className="eyebrow">{busy ? 'Building your recording' : 'Ready to experiment'}</span>
+            <h3>{busy ? 'Generating multichannel EEG…' : 'Generate EEG to begin.'}</h3>
+            <p>{busy ? 'Projecting the simulated sources through the head model.' : 'Select Generate EEG in the control panel. Inspect the traces, then generate QEEG maps.'}</p>
+          </div>}
+          {simulation && view === 'EEG' && <><p className="ql-caption">First 10 s of {simulation.channel_names.length}-channel simulated EEG · µV · {simulation.recipe.reference.replace('_', ' ')}</p><StackedEegBrowser x={simulation.time_s} series={Object.fromEntries(simulation.channel_names.map((name, i) => [name, simulation.eeg_uv[i]!]))} ariaLabel="Simulated QEEG multichannel recording" /></>}
+          {simulation && view === 'Geometry' && <Geometry result={simulation} />}
           {result && view === 'Atlas' && <>
             <div className="ql-options"><Select label="Map quantity" value={power} options={['relative', 'absolute']} labels={['Relative power · %', 'Absolute power · µV²']} onChange={(v) => setPower(v as typeof power)} /><Select label="Frequency grouping" value={group} options={['frequency', 'bands']} labels={['1 Hz frequency atlas', 'Canonical bands']} onChange={setGroup} />{group === 'frequency' && <Select label="Frequency range" value={String(page)} options={['0', '1', '2']} labels={['1–16 Hz', '16–31 Hz', '31–45 Hz']} onChange={(v) => setPage(Number(v))} />}<Select label="Color scale" value={colorScale} options={['per_map', 'shared']} labels={['Per map · spatial pattern', 'Shared · compare power']} onChange={(v) => setColorScale(v as typeof colorScale)} /></div>
             <Atlas result={result} power={power} group={group} page={page} colorScale={colorScale} />
@@ -119,9 +136,9 @@ export function QeegWorkbench(props: { activeLab: LabId; onLabChange: (lab: LabI
             <NormView result={result} metric={normMetric} band={normMetric === 'theta_beta' ? 0 : band} c={c} />
           </>}
         </div>
-        <footer className="ql-provenance">{result ? `${result.channel_names.length} electrodes · ${result.recipe.reference.replace('_', ' ')} · seed ${result.recipe.seed} · ${result.recipe.cohort_size} synthetic peers · MNE ${result.provenance.mne}` : 'Local scientific engine'}{busy && result && ' · Regenerating…'}</footer>
+        <footer className="ql-provenance">{simulation ? `${simulation.channel_names.length} electrodes · ${simulation.recipe.reference.replace('_', ' ')} · seed ${simulation.recipe.seed} · MNE ${simulation.provenance.mne}` : 'Local scientific engine'}{result ? ` · ${result.recipe.cohort_size} synthetic peers` : simulation ? ' · EEG generated; maps pending' : ''}{busy && ' · Calculating…'}</footer>
       </section>
-      <aside className="inspector-panel ql-inspector"><span className="eyebrow">Read the image</span><h2>{lesson.title}</h2><p>{lesson.text}</p><section><span className="eyebrow">Try one change</span><p>{lesson.experiment}</p></section><section><span className="eyebrow">The calculation chain</span><ol><li>Known source activity · nAm</li><li>Forward model → electrode EEG · µV</li><li>Reference → Welch PSD · µV²/Hz</li><li>Integrate → power · µV² or %</li><li>Interpolate → scalp image</li><li>Transform → synthetic-cohort z</li></ol></section><details><summary>Assumptions & sources</summary><p>Template positions, six radial dipoles and concentric 90 mm head spheres. No individual MRI or cortical localization. All spectra use [1, 45) Hz; band upper limits are excluded.</p><p>Norms are generated examples, not clinical norms. ±2 SD is a descriptive marker, not a corrected significance threshold or diagnosis. Testing many electrodes and bands creates multiple comparisons.</p><a href="https://mne.tools/stable/generated/mne.make_forward_solution.html" target="_blank" rel="noreferrer">MNE forward model</a><a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html" target="_blank" rel="noreferrer">Welch power spectra</a><a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.coherence.html" target="_blank" rel="noreferrer">Magnitude-squared coherence</a></details><p className="ql-norm-label">SIMULATED DATA<br />Educational reference only.</p></aside>
+      <aside className="inspector-panel source-inspector ql-inspector"><section className="inspector-lead"><span className="eyebrow">Read the image</span><h2>{lesson.title}</h2><p>{lesson.text}</p></section><section className="ql-inspector-section"><span className="eyebrow">Try one change</span><p>{lesson.experiment}</p></section><section className="ql-inspector-section"><span className="eyebrow">The calculation chain</span><ol><li>Known source activity · nAm</li><li>Forward model → electrode EEG · µV</li><li>Reference → Welch PSD · µV²/Hz</li><li>Integrate → power · µV² or %</li><li>Interpolate → scalp image</li><li>Transform → synthetic-cohort z</li></ol></section><details><summary>Assumptions & sources</summary><p>Template positions, six radial dipoles and concentric 90 mm head spheres. No individual MRI or cortical localization. All spectra use [1, 45) Hz; band upper limits are excluded.</p><p>Norms are generated examples, not clinical norms. ±2 SD is a descriptive marker, not a corrected significance threshold or diagnosis. Testing many electrodes and bands creates multiple comparisons.</p><a href="https://mne.tools/stable/generated/mne.make_forward_solution.html" target="_blank" rel="noreferrer">MNE forward model</a><a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html" target="_blank" rel="noreferrer">Welch power spectra</a><a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.coherence.html" target="_blank" rel="noreferrer">Magnitude-squared coherence</a></details><p className="ql-norm-label">SIMULATED DATA<br />Educational reference only.</p></aside>
     </main>
   </>
 }
@@ -173,7 +190,7 @@ function Atlas({ result, power, group, page, colorScale }: {
   </>
 }
 
-function Geometry({ result }: { result: QeegResult }) {
+function Geometry({ result }: { result: QeegSimulation }) {
   return <div className="ql-geometry"><div className="ql-geometry-pair"><figure><svg viewBox="0 0 250 250" role="img" aria-label="Concentric head model and six dipoles, superior view">{[100, 97, 92, 90].map((r, i) => <circle key={r} cx="125" cy="125" r={r} fill={['#e8d8c2', '#bfa992', '#d8e8e6', '#eef3ef'][i]} stroke="#7b918c" />)}<path d="M117 25 L125 12 L133 25" fill="none" stroke="#526e69" />{result.source_positions_m.map(([x = 0, y = 0], i) => <g key={i}><circle cx={125 + x / .09 * 100} cy={125 - y / .09 * 100} r="7" fill={i < 2 ? '#087f83' : i < 4 ? '#b96139' : '#685e93'} /><text x={125 + x / .09 * 100} y={110 - y / .09 * 100} fontSize="10" textAnchor="middle">{['α L', 'α R', 'θ L', 'θ R', 'β L', 'β R'][i]}</text></g>)}</svg><figcaption>Forward model · top view<br />Brain / CSF / skull / scalp</figcaption></figure><figure><QeegTopomap positions={result.positions_2d} names={result.channel_names} values={result.channel_names.map(() => 0)} low={-1} high={1} divergent labels label="Template electrode positions on scalp" /><figcaption>{result.channel_names.length} electrodes · standard_1020 template<br />Azimuthal equidistant projection</figcaption></figure></div><h3>EEG(t) = reference[G × sources(t) + noise(t)]</h3><p>G is computed with MNE’s spherical forward solver, using each dipole’s radial orientation and electrode coordinates in head space. The six source amplitudes are in nAm; sensor outputs are converted to µV.</p><dl className="ql-facts"><div><dt>Layer radii</dt><dd>81 / 82.8 / 87.3 / 90 mm</dd></div><div><dt>Conductivity · S/m</dt><dd>{result.conductivities_s_m.join(' / ')}</dd></div><div><dt>Reference equation</dt><dd>{result.recipe.reference === 'average' ? 'V′c = Vc − mean(all EEG channels)' : 'V′c = Vc − (VA1 + VA2) / 2'}</dd></div></dl><p>Template electrode coordinates are used as supplied; the head drawing is schematic. A1/A2 are simulated reference electrodes and are not atlas channels. The head model generates the EEG; the atlas only needs electrode positions and a channel metric.</p></div>
 }
 function MetricTable({ result: r, c }: { result: QeegResult; c: number }) {

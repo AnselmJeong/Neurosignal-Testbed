@@ -154,8 +154,39 @@ def normative_cohort(montage, reference, head_model, size, seed):
     return {key: np.stack([member[key] for member in members]) for key in members[0]}
 
 
-def run_qeeg_lab(recipe: QeegLabRecipe) -> dict:
+def _recording_result(recipe: QeegLabRecipe, eeg: np.ndarray, latent: np.ndarray) -> dict:
     names, leadfield, xyz, xy, conductivities = geometry(recipe.montage, recipe.head_model)
+    return {
+        "recipe": recipe.model_dump(),
+        "channel_names": names,
+        "positions_2d": xy,
+        "positions_m": xyz,
+        "source_positions_m": SOURCES,
+        "leadfield_v_per_am": leadfield,
+        "conductivities_s_m": conductivities,
+        "time_s": np.arange(FS * 10) / FS,
+        "eeg_uv": eeg[:, : FS * 10],
+        "source_nam": latent[:, : FS * 10],
+        "provenance": {
+            "engine": "qeeg-simulation-v1",
+            "mne": mne.__version__,
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+            "sfreq": FS,
+            "duration_s": DURATION,
+        },
+    }
+
+
+def generate_qeeg_eeg(recipe: QeegLabRecipe) -> dict:
+    """Generate a recording preview and geometry without spectra or reference peers."""
+    eeg, latent = simulate(recipe, np.random.default_rng(recipe.seed))
+    return _json(_recording_result(recipe, eeg, latent))
+
+
+def run_qeeg_lab(recipe: QeegLabRecipe) -> dict:
+    # Recreate the exact full 32 s recording from the generated snapshot, without server state.
+    names, *_ = geometry(recipe.montage, recipe.head_model)
     eeg, latent = simulate(recipe, np.random.default_rng(recipe.seed))
     metrics = quantify(eeg)
     f, psd = metrics["frequency_hz"], metrics["psd"]
@@ -194,16 +225,7 @@ def run_qeeg_lab(recipe: QeegLabRecipe) -> dict:
     )
     total = metrics["absolute"].sum(axis=0)
     result = {
-        "recipe": recipe.model_dump(),
-        "channel_names": names,
-        "positions_2d": xy,
-        "positions_m": xyz,
-        "source_positions_m": SOURCES,
-        "leadfield_v_per_am": leadfield,
-        "conductivities_s_m": conductivities,
-        "time_s": np.arange(FS * 10) / FS,
-        "eeg_uv": eeg[:, : FS * 10],
-        "source_nam": latent[:, : FS * 10],
+        **_recording_result(recipe, eeg, latent),
         "metrics": metrics,
         "atlas_absolute": atlas_absolute,
         "atlas_relative": atlas_absolute / total,

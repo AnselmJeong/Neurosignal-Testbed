@@ -94,3 +94,20 @@ def test_api_contract_and_validation():
     assert len(response.json()["metrics"]["psd"]) == 32
     assert client.post("/qeeg/simulate", json={"cohort_size": 50000}).status_code == 422
     assert client.post("/qeeg/simulate", json={"alpha_hz": 64}).status_code == 422
+
+
+def test_eeg_stage_does_not_analyze_and_matches_analysis_input(monkeypatch, result):
+    def unexpected_analysis(*args, **kwargs):
+        raise AssertionError("EEG generation must not calculate spectra or peers")
+
+    monkeypatch.setattr("neurobridge.qeeg_lab.quantify", unexpected_analysis)
+    monkeypatch.setattr("neurobridge.qeeg_lab.normative_cohort", unexpected_analysis)
+    client = TestClient(app)
+    response = client.post("/qeeg/eeg", json=result["recipe"])
+    assert response.status_code == 200
+    recording = response.json()
+    assert "metrics" not in recording and "norms" not in recording
+    for key in ("recipe", "eeg_uv", "source_nam", "time_s", "positions_2d", "channel_names"):
+        assert recording[key] == result[key]
+    assert recording["provenance"]["duration_s"] == 32
+    assert client.post("/qeeg/eeg", json={"alpha_hz": 64}).status_code == 422

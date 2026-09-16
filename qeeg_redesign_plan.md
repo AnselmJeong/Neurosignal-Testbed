@@ -32,3 +32,20 @@ Added a separate password-protected production frontend/API on loopback port 876
 
 ## Router forwarding diagnosis · 2026-09-05
 Confirmed Vite still listened on 127.0.0.1:5174, so router-forwarded connections were refused. DDNS resolved to the current WAN IP and macOS application firewall was disabled. Changed Vite to 0.0.0.0 with the exact DDNS hostname allowed; added pre-proxy password authentication for non-loopback HTTP requests using existing owner-only credentials. Added Node typings for the server-only auth code. Verified LAN and DDNS-path authenticated frontend/health responses 200, unauthenticated source/API requests 401, local loopback access 200, and a DDNS-path QEEG run 200 with 19 channels. This checks the DDNS/NAT path from the host network, not an independent cellular connection. TypeScript/build and all 33 web tests passed. Direct 5174 remains HTTP; the existing tunnel provides HTTPS separately.
+
+## Two-stage workflow and shared design · 2026-09-06
+- Reuse the Source section's segmented view-tabs and inspector-lead typography.
+- Generate EEG explicitly, without spectral/cohort computation; open EEG on success.
+- A second control-panel action analyzes the exact seeded recording and opens the atlas. Keep the existing analysis API compatible.
+- Gate analysis tabs until maps exist; require fresh EEG after input changes. Preserve an inspectable recording on analysis errors and allow retry.
+- Validate API stage separation and waveform identity, UI transitions/stale settings/error recovery, production build and live browser layout.
+
+Validation: Python 79 tests and web 37 tests passed; targeted four-stage-flow checks rerun after scroll handling, TypeScript/Vite build and Ruff passed. Live browser verified explicit EEG-first flow, map generation opening Atlas, tab gating, and matching Source/QEEG heading/body sizes (24/16 px) and line heights (27.6/25.6 px). EEG viewer remained viewport-filling at 1280×720 and 1600×900. Generating from below-fold controls now brings the output into view. Updated the existing protected production server while preserving its tunnel URL and credentials; public HTTPS frontend and both scientific stages returned 200, waveforms matched exactly, unauthenticated requests returned 401.
+
+## Empty-state alignment · 2026-09-06
+Replace the custom QEEG loading block with Sampling's shared empty-stage/empty-wave pattern. Center the icon, title and bounded paragraph together in the available viewport; remove the independent 100 px padding and left-anchored paragraph that caused the visible misalignment. Keep execution in the control panel.
+
+## Shared tab readability · 2026-09-06
+Increase all shared view-tab labels from 9 px to 14 px with 40 px minimum targets. Use dark text on a pale green-gray band and white text on deep teal for selection. Override the global 45% disabled opacity so unavailable view names remain readable, while retaining native disabled behavior. Allow wrapped tabs and intrinsic toolbar row heights for longer labels.
+
+Validation: build and all 37 web tests passed. Browser checked Sampling, Source, QEEG and imported-QEEG tabs at 1280 px, including readable disabled tabs and no overlap with the next panel. Text contrast is 7.44:1 selected, 7.99:1 available and 4.97:1 unavailable. Public HTTPS serves the updated shared stylesheet.

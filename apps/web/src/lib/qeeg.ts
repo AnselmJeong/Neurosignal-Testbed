@@ -20,7 +20,7 @@ export interface NormSummary {
   subject: number[][]; mean: number[][]; sd: number[][]; z: number[][]
   percentile: number[][]; cohort_values: number[][][]
 }
-export interface QeegResult {
+export interface QeegSimulation {
   recipe: QeegRecipe
   channel_names: string[]
   positions_2d: [number, number][]
@@ -29,6 +29,9 @@ export interface QeegResult {
   leadfield_v_per_am: number[][]
   conductivities_s_m: number[]
   time_s: number[]; eeg_uv: number[][]; source_nam: number[][]
+  provenance: { engine: string; mne: string; numpy: string; scipy: string; sfreq: number; duration_s: number }
+}
+export interface QeegResult extends QeegSimulation {
   metrics: {
     frequency_hz: number[]; psd: number[][]; absolute: number[][]; relative: number[][]
     theta_beta: number[]; alpha_peak_hz: number[]; median_hz: number[]
@@ -46,4 +49,12 @@ export async function simulateQeeg(recipe: QeegRecipe): Promise<QeegResult> {
   })
   if (!response.ok) throw new Error('Simulation could not finish. Check the local API and recipe values, then retry.')
   return response.json() as Promise<QeegResult>
+}
+
+export async function generateQeegEeg(recipe: QeegRecipe): Promise<QeegSimulation> {
+  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/qeeg/eeg`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recipe),
+  })
+  if (!response.ok) throw new Error('EEG generation could not finish. Check the local API and settings, then retry.')
+  return response.json() as Promise<QeegSimulation>
 }
