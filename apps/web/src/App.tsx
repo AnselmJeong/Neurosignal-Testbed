@@ -29,6 +29,7 @@ import { LabNavigator, type LabId } from './components/LabNavigator'
 import { RealDataWorkbench } from './components/RealDataWorkbench'
 import { QeegWorkbench } from './components/QeegWorkbench'
 import { SourceModelWorkbench } from './components/SourceModelWorkbench'
+import { BenchmarkWorkbench } from './features/benchmarks/BenchmarkWorkbench'
 import { checkHealth, runRecipe } from './lib/api'
 import { defaultRecipe, type ExperimentRecipe, type ExperimentResult, type RequestState } from './types'
 
@@ -211,7 +212,7 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : <>
+      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : <>
         <main className="workspace">
         <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} />
 

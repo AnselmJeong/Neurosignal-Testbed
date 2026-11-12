@@ -116,6 +116,85 @@ cd apps/web && npm test && npm run typecheck && npm run build
 The web client contains no Electrobun or Tauri imports. Desktop packaging remains deferred until
 the browser MVP gate in the implementation plan is complete.
 
+## JR Benchmark — resting-EEG coupling × observation slice (P0–P4)
+
+The JR Benchmark is a separate lab that sits beside the existing connectivity lesson and does
+not replace it. The plan is
+[`docs/plans/2026-11-12-resting-eeg-jr-benchmark.ko.md`](docs/plans/2026-11-12-resting-eeg-jr-benchmark.ko.md).
+
+- **Simulation.** A TVB Jansen–Rit network produces `v = y1 − y2` in mV.
+- **Observation.** The same source artifact is observed as identity probes (A/B) and through a
+  32-electrode MNE sphere forward model (C/D), each with coupling off (`G = 0`) and on.
+  Native-source conditions `source_off` and `source_on` are always kept.
+- **Metrics.** PLV (M14), wPLI (M17) and wSMI (M23) are computed on identical inputs.
+- **Effects.** Results are reported as seed-paired effects with seed-bootstrap CIs and seed
+  sign-flip p-values `(b+1)/(B+1)`. Contrasts are B−A, D−C, C−A, D−B and (D−C)−(B−A), shown
+  next to Welch peak/power companions.
+- **Ground truth.** Truth is used only in the source-space evaluation stage.
+- **Persistence.** Artifacts are checksummed `.npy`/JSON files under
+  `benchmarks/<experiment_id>/`, and jobs live in a SQLite index. Cancel, resume and restart
+  recovery reuse every valid artifact.
+
+Only the P0–P4 vertical slice is implemented. All 29 metric IDs are registered: 12 are
+implemented and 17 are `planned`/unsupported. Presets Q2–Q7 are planned. P4 alone is not full
+completion (plan §8.1). For per-phase status, see
+[`docs/benchmarks/STATUS.ko.md`](docs/benchmarks/STATUS.ko.md).
+
+```bash
+uv sync --extra dev --extra simulation          # TVB (tvb-library 2.10) is required to simulate
+# optional groups for later metric families: --extra metrics (AntroPy, bctpy), --extra pac (Tensorpac)
+# IDTxl/JIDT (M21, M28) is not installable as a locked extra: see docs/benchmarks/p0-environment.md
+
+uv run neurosignal-recipe benchmark validate fixtures/recipes/jr-core-preview.json
+uv run neurosignal-recipe benchmark run fixtures/recipes/jr-core-preview.json --root /tmp/nsbench [--json]
+uv run neurosignal-recipe benchmark resume <experiment_id> --root /tmp/nsbench [--json]
+uv run neurosignal-recipe benchmark export <experiment_id> --root /tmp/nsbench --out /tmp/nsbench-export
+```
+
+`run` blocks and runs the job inline. `export` writes `results.json`, `summary.csv` and
+`recipe.json`; no HTML report exists yet. There are two recipes:
+
+| Recipe | Network and duration | Seeds | Run time |
+| --- | --- | --- | --- |
+| `jr-core-preview.json` | 8 nodes, 40 s | 3 | about 2–3 min |
+| `jr-core-comparison.json` | 32 nodes, 120 s | 30 | about 70 min of TVB integration (estimate) |
+
+The comparison recipe has not been run yet. The old `neurosignal-recipe <recipe> [--output]`
+command is unchanged.
+
+The API router is mounted at `/benchmarks` on the scientific service. The web client reaches it
+as `/api/benchmarks/...`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /benchmarks/capabilities` | 29 metric IDs with status/dependencies, presets, window limits |
+| `POST /benchmarks/validate` | recipe schema (422) and scientific/cost check (`ok`, `errors`, `cost`) |
+| `POST /benchmarks/experiments` | validate and start a background worker job (202) |
+| `GET /benchmarks/experiments/{id}` | conditions, metric cells, comparisons, evaluation, artifacts |
+| `GET /benchmarks/jobs/{id}` | state, stage, task counts, failures, worker liveness |
+| `POST /benchmarks/jobs/{id}/cancel` | cooperative cancel at the next task checkpoint |
+| `POST /benchmarks/experiments/{id}/resume` | resume reusing committed artifacts (202) |
+| `POST /benchmarks/experiments/{id}/analyses` | re-run other metrics on the stored signals (202) |
+| `GET /benchmarks/artifacts/{id}/window?experiment_id=…` | 2-D trace window (≤16384 samples, ≤64 channels) |
+| `POST /benchmarks/experiments/{id}/exports` | write results.json / summary.csv / recipe.json on the server (201) |
+
+The storage root is `$NEUROSIGNAL_BENCHMARK_ROOT` when set. Otherwise it is the parent of the
+real-data project root (`~/Library/Application Support/NeuroSignal`). Exports are written on
+the server only; there is no download route yet. The 7th web lab, **JR Benchmark**, lives in
+`apps/web/src/features/benchmarks/` and is listed in the lab navigator. It covers Q1 design,
+validation and cost, live job progress with cancel/resume, the A–D condition grid, source-space
+matrices, seed-paired effects with CIs and the 29-metric catalog. Sensor channel×channel
+matrices, per-seed trace drill-down and export download are not served by the API yet.
+
+```bash
+uv run python -m pytest -m 'not slow' tests/unit/test_benchmark_contracts.py \
+  tests/unit/test_metric_registry.py tests/unit/test_artifact_store.py tests/unit/test_job_manager.py \
+  tests/oracle/test_jr_generator.py tests/oracle/test_jr_observation.py \
+  tests/oracle/test_metric_connectivity.py tests/oracle/test_metric_wsmi.py \
+  tests/integration/test_benchmark_core.py tests/integration/test_benchmark_api.py
+uv run python -m pytest -m slow tests/oracle/test_jr_generator.py   # V03 stochastic dt/2 check, ~7 min
+```
+
 ---
 
 ## V2.1 — Exploratory EEG Prototype Validation

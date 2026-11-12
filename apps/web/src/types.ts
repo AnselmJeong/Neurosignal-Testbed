@@ -634,3 +634,13 @@ export interface RealDataQeegResult {
     recipe_hash: string
   }
 }
+
+// JR Benchmark lab contracts live with the feature; re-exported for shared imports.
+export type {
+  BenchmarkCapabilities,
+  BenchmarkJob,
+  BenchmarkRecipe,
+  ExperimentResults as BenchmarkExperimentResults,
+  MetricCapability as BenchmarkMetricCapability,
+  PairedEffect as BenchmarkPairedEffect,
+} from './features/benchmarks/types'
