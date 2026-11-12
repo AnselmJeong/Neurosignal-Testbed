@@ -51,6 +51,8 @@ from neurobridge.service import run_experiment
 from neurobridge.source_modeling import run_source_model_benchmark, simulate_source_model
 from pydantic import BaseModel
 
+from neurobridge_api.routes.benchmarks import router as benchmarks_router
+
 app = FastAPI(
     title="NeuroSignal API",
     version=__version__,
@@ -66,6 +68,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type"],
 )
+
+app.include_router(benchmarks_router)
 
 RUNS: dict[str, ExperimentResult] = {}
 

@@ -27,6 +27,17 @@ ica = [
   "mne-icalabel>=0.9,<1",
   "onnxruntime>=1.23,<2",
 ]
+simulation = [
+  "tvb-library>=2.10,<2.11",
+]
+metrics = [
+  "antropy>=0.2.3,<0.3",
+  "bctpy>=0.6.1,<0.7",
+]
+pac = [
+  "tensorpac>=0.6.5,<0.7",
+]
+# information (IDTxl/JIDT): unsupported_dependency — see docs/benchmarks/p0-environment.md
 
 [project.scripts]
 neurosignal-api = "neurobridge_api.main:run"

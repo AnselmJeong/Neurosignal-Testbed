@@ -9,9 +9,10 @@ import {
   type LucideIcon,
   Waves,
   ChartNoAxesCombined,
+  Network,
 } from 'lucide-react'
 
-export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg'
+export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark'
 
 export interface LabStep {
   label: string
@@ -43,6 +44,10 @@ const LABS: Record<LabId, { number: string; label: string; title: string; object
   qeeg: {
     number: '06', label: 'QEEG', title: 'How does EEG become a map?',
     objective: 'Simulate EEG, build scalp maps, calculate metrics, and compare a synthetic reference cohort.', minutes: '18 min', icon: ChartNoAxesCombined,
+  },
+  benchmark: {
+    number: '07', label: 'JR Benchmark', title: '결합이 바뀌면 무엇이 달라지는가?',
+    objective: 'JR 네트워크로 네 조건을 생성하고 PLV·wPLI·wSMI의 seed paired 효과와 신뢰구간을 비교합니다.', minutes: '20 min+', icon: Network,
   },
 }
 

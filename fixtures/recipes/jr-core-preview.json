@@ -1,0 +1,162 @@
+{
+  "recipe_version": "1.0",
+  "kind": "jr-benchmark",
+  "title": "JR core comparison · preview",
+  "status": "unvalidated_starting_values",
+  "notes": [
+    "Starting values per plan §2.4; not validated physiology. Calibrate stability, PSD and firing range on calibration_seeds before fixing evaluation seeds.",
+    "simulation.seeds.root is a placeholder (= benchmark.seeds[0]); the runner sets SeedTree(root=seed) per benchmark seed and reuses it for every G level, so coupling on/off share each node's input-noise realization.",
+    "C and D are [target][source]; C is the row-normalized ring lattice (k=2) of default_alpha_preset; D in ms."
+  ],
+  "calibration_seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "conditions": {
+    "A": {
+      "G": 0.0,
+      "observation": "identity_probe"
+    },
+    "B": {
+      "G": 10.0,
+      "observation": "identity_probe"
+    },
+    "C": {
+      "G": 0.0,
+      "observation": "eeg_forward"
+    },
+    "D": {
+      "G": 10.0,
+      "observation": "eeg_forward"
+    }
+  },
+  "benchmark": {
+    "schema_version": "1.0",
+    "question_preset": "jr-coupling-x-observation",
+    "factors": {
+      "G": [0.0, 10.0],
+      "observation": [
+        "identity_probe",
+        "eeg_forward"
+      ]
+    },
+    "held_fixed": {
+      "reference": "none",
+      "sensor_noise_std": 0.0,
+      "epoch_s": 8.0,
+      "preprocessing": "none"
+    },
+    "seeds": [100, 101, 102],
+    "metrics": [
+      {
+        "id": "M14",
+        "variant": "default",
+        "backend": null,
+        "input_spaces": [
+          "source",
+          "sensor"
+        ],
+        "params": {},
+        "required": true
+      },
+      {
+        "id": "M17",
+        "variant": "default",
+        "backend": null,
+        "input_spaces": [
+          "source",
+          "sensor"
+        ],
+        "params": {},
+        "required": true
+      },
+      {
+        "id": "M23",
+        "variant": "default",
+        "backend": null,
+        "input_spaces": [
+          "source",
+          "sensor"
+        ],
+        "params": {},
+        "required": true
+      }
+    ],
+    "profile": "preview",
+    "budget": {
+      "max_tasks": null,
+      "max_runtime_s": null,
+      "max_disk_bytes": null,
+      "n_surrogates": 49,
+      "n_bootstrap": 999
+    }
+  },
+  "simulation": {
+    "schema_version": "1.0",
+    "preset": "jr-alpha-default",
+    "version": "0.1",
+    "n_nodes": 8,
+    "node_params": {},
+    "C": [
+      [0.0, 0.25, 0.25, 0.0, 0.0, 0.0, 0.25, 0.25],
+      [0.25, 0.0, 0.25, 0.25, 0.0, 0.0, 0.0, 0.25],
+      [0.25, 0.25, 0.0, 0.25, 0.25, 0.0, 0.0, 0.0],
+      [0.0, 0.25, 0.25, 0.0, 0.25, 0.25, 0.0, 0.0],
+      [0.0, 0.0, 0.25, 0.25, 0.0, 0.25, 0.25, 0.0],
+      [0.0, 0.0, 0.0, 0.25, 0.25, 0.0, 0.25, 0.25],
+      [0.25, 0.0, 0.0, 0.0, 0.25, 0.25, 0.0, 0.25],
+      [0.25, 0.25, 0.0, 0.0, 0.0, 0.25, 0.25, 0.0]
+    ],
+    "D": [
+      [0.0, 8.0, 8.0, 0.0, 0.0, 0.0, 8.0, 8.0],
+      [8.0, 0.0, 8.0, 8.0, 0.0, 0.0, 0.0, 8.0],
+      [8.0, 8.0, 0.0, 8.0, 8.0, 0.0, 0.0, 0.0],
+      [0.0, 8.0, 8.0, 0.0, 8.0, 8.0, 0.0, 0.0],
+      [0.0, 0.0, 8.0, 8.0, 0.0, 8.0, 8.0, 0.0],
+      [0.0, 0.0, 0.0, 8.0, 8.0, 0.0, 8.0, 8.0],
+      [8.0, 0.0, 0.0, 0.0, 8.0, 8.0, 0.0, 8.0],
+      [8.0, 8.0, 0.0, 0.0, 0.0, 8.0, 8.0, 0.0]
+    ],
+    "G": 10.0,
+    "input_noise": {
+      "kind": "gaussian_white",
+      "mean": 0.22,
+      "std": 0.022,
+      "units": "1/ms",
+      "independent_per_node": true
+    },
+    "dt_ms": 0.1220703125,
+    "monitor_hz": 1024,
+    "output_fs": 256,
+    "burn_in_s": 10.0,
+    "duration_s": 40.0,
+    "seeds": {
+      "root": 100
+    }
+  },
+  "observations": {
+    "identity_probe": {
+      "schema_version": "1.0",
+      "kind": "identity_probe",
+      "n_sensors": 8,
+      "gain": 1.0,
+      "gain_units": "A·m/mV",
+      "baseline": 0.0,
+      "baseline_units": "mV",
+      "reference": "none",
+      "sensor_noise_std": 0.0,
+      "sensor_noise_units": "V",
+      "mixing": null
+    },
+    "eeg_forward": {
+      "schema_version": "1.0",
+      "kind": "eeg_forward",
+      "n_sensors": 32,
+      "gain": 1.0,
+      "gain_units": "A·m/mV",
+      "baseline": 0.0,
+      "baseline_units": "mV",
+      "reference": "none",
+      "sensor_noise_std": 0.0,
+      "sensor_noise_units": "V",
+      "mixing": null
+    }
+  }
+}
