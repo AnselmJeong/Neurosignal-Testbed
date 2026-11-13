@@ -113,8 +113,61 @@ uv run ruff check .
 cd apps/web && npm test && npm run typecheck && npm run build
 ```
 
-The web client contains no Electrobun or Tauri imports. Desktop packaging remains deferred until
-the browser MVP gate in the implementation plan is complete.
+The web client contains no Electrobun or Tauri imports. The macOS desktop app wraps the same web
+build and API without changing them (see below).
+
+## Desktop app (macOS)
+
+`Neurosignal Testbed.app` (identifier `local.neurosignal.testbed`) is an Electrobun 2 shell
+(`apps/desktop`) for Apple Silicon. It bundles a standalone Python 3.12 runtime and the built web
+app. On launch the bun main process starts
+`python3.12 -I -u -m neurobridge_api.desktop --port 0 --ready-stdout --parent-pid …`. That process
+serves the API under `/api` and the web app under `/` on one random `127.0.0.1` port. The window
+opens it after the `NEUROSIGNAL_READY` stdout line and a ready `/api/health`. The packaged app does
+not use the repo, `.venv`, `uv`, Homebrew or the shell `PATH`. Architecture, the build pipeline,
+the smoke test, measurements and limits are in [docs/desktop/DESKTOP.ko.md](docs/desktop/DESKTOP.ko.md)
+(Korean).
+
+To build you need arm64 macOS, `bun` (1.4.4), `npm`/Node and `uv` on `PATH`. If they are elsewhere,
+set `BUN_BIN`, `NPM_BIN` or `UV_BIN`. Run from the repo root:
+
+```bash
+scripts/desktop/build_app.sh               # build apps/desktop/dist/"Neurosignal Testbed.app" (default --build-only)
+scripts/desktop/build_app.sh --run         # build, then open it
+scripts/desktop/build_app.sh --install     # build, then install to /Volumes/Aquatope/Applications (NST_INSTALL_DIR overrides)
+scripts/desktop/build_app.sh --dmg         # build, then write apps/desktop/dist/"Neurosignal Testbed-<version>-arm64.dmg"
+scripts/desktop/smoke_app.sh "apps/desktop/dist/Neurosignal Testbed.app"   # bundle, backend and app smoke test
+```
+
+A full build takes about 3.5 minutes on the external disk. The app is about 876 MB. Build logs go
+to `apps/desktop/build/*.log`, and `apps/desktop/build/` and `apps/desktop/dist/` are gitignored.
+
+For shell development, run `cd apps/desktop && bun install && bun run dev`. This uses the repo
+`.venv` and `apps/web/dist`, so run `npm run build` in `apps/web` first. `bun test` and
+`bun run typecheck` check the shell.
+
+**Data and logs.** All mutable state lives outside the bundle in
+`~/Library/Application Support/local.neurosignal.testbed/stable/` (`dev/` for `bun run dev`).
+That covers job databases and artifacts (`benchmarks/`), caches (`cache/`), and
+`logs/backend.log` and `logs/desktop.log`. Deleting the app keeps this data.
+
+**Troubleshooting**
+
+- *Error page or stuck loading screen.* Open **보기 → 실행 로그 열기**, or read `logs/backend.log`
+  in the data directory. **보기 → 분석 서버 재시작** restarts the backend.
+- *"Unidentified developer".* The app is ad-hoc signed and not notarized. A copy built on this Mac
+  opens directly. A copy brought from elsewhere needs Control-click → **Open** in Finder, or
+  **System Settings → Privacy & Security → Open Anyway** on recent macOS.
+- *External volume prompt.* Launched from `/Volumes/Aquatope`, macOS asks for removable-volume
+  access on the first launch. It asks again after every reinstall, because the ad-hoc signature
+  changes. Click **허용** (Allow). Until someone answers, the app stalls, and so can other
+  processes' access to that disk. Do not `open` the installed app from unattended automation.
+  `smoke_app.sh` launches an internal-disk copy unless `SMOKE_OPEN_IN_PLACE=1` is set. To reset the
+  permission, run `tccutil reset SystemPolicyRemovableVolumes local.neurosignal.testbed`.
+- *First launch is slow.* With an empty data directory it takes about 29 s, mostly matplotlib
+  building its font cache. Later launches take about 8 s.
+- *`--install` says the app is running.* Quit the installed app first. The new copy replaces the
+  old one only after it is verified.
 
 ## JR Benchmark — resting-EEG coupling × observation slice (P0–P4)
 

@@ -42,6 +42,7 @@ pac = [
 [project.scripts]
 neurosignal-api = "neurobridge_api.main:run"
 neurosignal-recipe = "neurobridge.cli:main"
+neurosignal-desktop = "neurobridge_api.desktop:main"
 # Compatibility aliases retained for existing local workflows.
 neurobridge-api = "neurobridge_api.main:run"
 neurobridge-recipe = "neurobridge.cli:main"
