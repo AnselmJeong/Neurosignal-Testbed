@@ -249,6 +249,7 @@ def _check_lengths(
 
 def _check_metrics(recipe: BenchmarkRecipe, warnings: list[str]) -> None:
     import neurobridge.metrics.connectivity  # noqa: F401
+    import neurobridge.metrics.directed  # noqa: F401  (registers M27/M28)
     import neurobridge.metrics.information  # noqa: F401
     from neurobridge.metrics import registry
 

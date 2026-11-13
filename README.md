@@ -135,15 +135,17 @@ not replace it. The plan is
   `benchmarks/<experiment_id>/`, and jobs live in a SQLite index. Cancel, resume and restart
   recovery reuse every valid artifact.
 
-Only the P0–P4 vertical slice is implemented. All 29 metric IDs are registered: 12 are
-implemented and 17 are `planned`/unsupported. Presets Q2–Q7 are planned. P4 alone is not full
+Only the P0–P4 vertical slice is implemented. All 29 metric IDs are registered: 14 are
+implemented (M11–M20, M22, M23, and the directed M27/M28 from the Information Flow lab) and 15
+are `planned`. Presets Q2–Q7 are planned. P4 alone is not full
 completion (plan §8.1). For per-phase status, see
 [`docs/benchmarks/STATUS.ko.md`](docs/benchmarks/STATUS.ko.md).
 
 ```bash
 uv sync --extra dev --extra simulation          # TVB (tvb-library 2.10) is required to simulate
 # optional groups for later metric families: --extra metrics (AntroPy, bctpy), --extra pac (Tensorpac)
-# IDTxl/JIDT (M21, M28) is not installable as a locked extra: see docs/benchmarks/p0-environment.md
+# IDTxl/JIDT is not installable as a locked extra (M21 waits on it; M28 uses numpy/scipy):
+# see docs/benchmarks/p0-environment.md
 
 uv run neurosignal-recipe benchmark validate fixtures/recipes/jr-core-preview.json
 uv run neurosignal-recipe benchmark run fixtures/recipes/jr-core-preview.json --root /tmp/nsbench [--json]
@@ -194,6 +196,62 @@ uv run python -m pytest -m 'not slow' tests/unit/test_benchmark_contracts.py \
   tests/integration/test_benchmark_core.py tests/integration/test_benchmark_api.py
 uv run python -m pytest -m slow tests/oracle/test_jr_generator.py   # V03 stochastic dt/2 check, ~7 min
 ```
+
+## Information Flow lab — GC, TE, DCM-style model, activity flow, PID on simulated EEG
+
+This is an educational pipeline. It simulates 8 TVB Jansen–Rit sources with a **known** directed
+graph: a pair P1→P2, a chain A→B→C, a fork C→{D,E} and a convergence {P1,A}→F. It observes them
+natively and through the 32-electrode forward model, with coupling on (G=10) and off (G=0). It then
+computes five method families from the source document
+`resources/Structural connectivity, functional connectivity, information flow.md`:
+
+| Method | Module | What it answers |
+| --- | --- | --- |
+| Granger causality (M27; pairwise, conditional, time-reversed) | `neurobridge.flow.granger` | does A's past improve prediction of B? |
+| Transfer entropy (M28; Gaussian, KSG) | `neurobridge.flow.transfer_entropy` | how much does A's past add about B's future given B's past? |
+| DCM-style linear effective model (not SPM DCM) | `neurobridge.flow.effective` | which listed direction model has the best BIC evidence? |
+| Activity flow mapping | `neurobridge.flow.activity_flow` | do other channels' activity × FC predict a held-out target? |
+| Partial information decomposition (MMI; Williams–Beer I_min for teaching) | `neurobridge.flow.pid` | is information about a target redundant, unique or synergistic? |
+
+Level 2 (content decoding) needs stimulus labels. It is reported as `not_applicable`, not as 0.
+Analysis functions never receive the generating graph. The analysis payload is hashed, and only
+then does `neurobridge.flow.evaluation` score it, in source space only. Concepts, formulas and
+limitations are in the Korean catalogue `neurobridge.flow.concepts`.
+
+```bash
+uv run neurosignal-recipe flow concepts [--id granger_causality]
+uv run neurosignal-recipe flow run fixtures/recipes/flow-preview.json --root /tmp/nsflow [--json]
+uv run neurosignal-recipe flow run fixtures/recipes/flow-full.json --root /tmp/nsflow   # 120 s, average ref, KSG surrogates
+```
+
+The preview run on 2026-11-13 (exit 0, 114 s pipeline time) gave these results:
+- **Source space, G=10.** Conditional GC edge AUC was 0.90 with 3/56 false positives at G=0.
+- **Fork siblings.** Pairwise GC reported a spurious edge between the siblings of P1 and of A;
+  conditional GC removed it. It did not remove the spurious edge between D and E.
+- **Gaussian TE with a 2-sample history.** It gave 21/56 false positives at G=0.
+- **Model comparison.** The masked VAR(p) comparison picked `none` for all four motifs at G=0, but
+  `bidirectional` for the pair and chain at G=10, with posterior 1.0.
+- **Sensor space, G=0.** 72% of channel pairs had significant pairwise GC from volume conduction
+  alone.
+
+All numbers, functions and caveats are in
+[`docs/flow/INFORMATION_FLOW.ko.md`](docs/flow/INFORMATION_FLOW.ko.md). The caveats include the
+causal high-pass default, the Pearson-FC R² scaling and the measure dependence of PID.
+
+The API router is mounted at `/flow` (the web dev server reaches it as `/api/flow/...`):
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /flow/concepts`, `GET /flow/concepts/{concept_id}` | Korean concept catalogue |
+| `POST /flow/validate` | recipe check and cost estimate |
+| `POST /flow/runs` | start a spawned worker run (202; at most 2 active) |
+| `GET /flow/runs`, `GET /flow/runs/{run_id}` | list runs, and get status plus `flow_result.json` |
+| `POST /flow/runs/{run_id}/cancel` | cooperative cancel between pipeline steps |
+
+The 8th web lab, **Information Flow** (`apps/web/src/features/flow/`), is listed in the lab
+navigator and lazy-loaded by `App.tsx`. It has a concept tab, run setup with the known source
+graph, one card per method (question, formula, intuition, result, limits) and a sensor-vs-source
+tab that shows spurious directed structure at G=0.
 
 ---
 

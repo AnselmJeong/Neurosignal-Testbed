@@ -1,0 +1,686 @@
+"""Structured Korean explanations of connectivity vs. information-flow concepts.
+
+Derived from ``resources/Structural connectivity, functional connectivity, information
+flow.md`` (sections are cited in ``source_section``). Every pipeline method result carries a
+``concept_id`` that resolves to one entry here, so a number is never shown without the
+question it answers and the reasons it can mislead.
+
+Pure data + pydantic models; :func:`catalog` returns a JSON-serialisable catalogue.
+"""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+SOURCE_DOCUMENT = "resources/Structural connectivity, functional connectivity, information flow.md"
+CATALOG_VERSION = "1.0"
+
+ConceptKind = Literal["concept", "method", "level", "caveat"]
+Applicability = Literal["applicable", "conditional", "not_applicable"]
+
+
+class RestingEEGApplicability(BaseModel):
+    """Can this concept/method be computed on resting EEG without stimulus labels?"""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: Applicability
+    reason: str
+
+
+class ConceptEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: str
+    kind: ConceptKind
+    short_name: str
+    title: str
+    question_answered: str
+    formula: str | None = Field(default=None, description="LaTeX")
+    intuition: str
+    what_this_simulation_can_show: str
+    limitations: list[str]
+    related_metric_id: str | None = None
+    flow_id: str | None = None
+    level: Literal[1, 2, 3] | None = None
+    applicability: RestingEEGApplicability
+    pipeline_methods: list[str] = Field(default_factory=list)
+    related_concepts: list[str] = Field(default_factory=list)
+    source_section: str
+
+
+class ConceptCatalog(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    version: str
+    source_document: str
+    summary: str
+    framework: list[str]
+    entries: list[ConceptEntry]
+
+
+_RESTING_OK = RestingEEGApplicability(
+    status="applicable", reason="자발 활동 시계열만으로 계산할 수 있습니다."
+)
+
+_ENTRIES: tuple[ConceptEntry, ...] = (
+    # ------------------------------------------------------------------ concepts
+    ConceptEntry(
+        id="structural_connectivity",
+        kind="concept",
+        short_name="SC",
+        title="구조적 연결성 (Structural connectivity)",
+        question_answered="어느 영역과 어느 영역이 물리적으로 연결되어 있는가?",
+        formula=r"C_{ij} \ge 0 \;(\text{source } j \rightarrow \text{target } i)",
+        intuition=(
+            "축삭 경로·백질 다발이라는 '도로망'입니다. 도로가 있다고 해서 지금 차가 다니는 것은 "
+            "아니며, 같은 SC 위에서도 상태(각성·수면·과제)에 따라 실제 신호의 경로가 달라집니다."
+        ),
+        what_this_simulation_can_show=(
+            "이 시뮬레이션에서 SC는 Jansen-Rit 노드 사이의 결합 행렬 C[target, source]로, 우리가 "
+            "직접 정한 '정답'입니다. 같은 C에서 전역 결합 G=0이면 도로는 있어도 신호가 흐르지 "
+            "않습니다(대조 조건). 분석 함수는 C를 받지 않고, C는 결과가 고정된 뒤 소스 공간 "
+            "평가에서만 사용됩니다."
+        ),
+        limitations=[
+            "실제 뇌에서는 확산 MRI 트랙토그래피로 추정하며 방향(어느 쪽이 송신인지)을 알 수 "
+            "없습니다.",
+            "SC는 비교적 안정적이지만 information flow는 상태에 따라 계속 바뀌는 과정입니다.",
+        ],
+        applicability=RestingEEGApplicability(
+            status="not_applicable",
+            reason=(
+                "EEG로는 해부학적 연결을 측정하지 못합니다. 이 실습에서는 시뮬레이션 정답으로만 "
+                "존재합니다."
+            ),
+        ),
+        related_concepts=["functional_connectivity", "information_flow"],
+        source_section="§1 표, §6",
+    ),
+    ConceptEntry(
+        id="functional_connectivity",
+        kind="concept",
+        short_name="FC",
+        title="기능적 연결성 (Functional connectivity)",
+        question_answered="어느 영역들의 활동이 함께 변하는가?",
+        formula=r"FC_{ij} = \mathrm{corr}(a_i(t), a_j(t))",
+        intuition=(
+            "두 신호가 함께 오르내리는 정도(상관·코히어런스·통계적 의존성)입니다. 강한 FC는 "
+            "A→B, B→A, 양방향, 제3의 C가 둘을 동시에 구동, 공통 리듬에 동기화 중 무엇이든 "
+            "될 수 있습니다."
+        ),
+        what_this_simulation_can_show=(
+            "fork 모티프(C→D, C→E)에서 D와 E는 직접 연결이 없지만 공통 입력 때문에 상관됩니다. "
+            "32채널 센서에서는 G=0(결합 없음)에서도 볼륨 전도 때문에 채널 간 상관이 생깁니다."
+        ),
+        limitations=[
+            "강한 FC만으로 정보가 실제 전달되었다고 결론 내릴 수 없습니다.",
+            "정보가 짧게 전달되고 다른 입력이 많으면 장시간 평균 FC는 낮을 수 있습니다.",
+            "FC는 관계를 측정할 뿐, 그 관계를 만든 시간적 과정을 설명하지 않습니다.",
+        ],
+        applicability=_RESTING_OK,
+        pipeline_methods=["activity_flow"],
+        related_concepts=["common_input", "volume_conduction"],
+        source_section="§1",
+    ),
+    ConceptEntry(
+        id="directed_effective_connectivity",
+        kind="concept",
+        short_name="dFC / EC",
+        title="방향성 기능 연결성과 유효 연결성 (Directed FC / effective connectivity)",
+        question_answered="어느 영역이 다른 영역의 미래 활동을 예측하거나 영향을 미치는가?",
+        formula=r"\text{dFC: } x_A(t-\tau) \Rightarrow x_B(t) \quad"
+        r"\text{EC: } \dot{\mathbf x} = A\mathbf x + C\mathbf u",
+        intuition=(
+            "예측 기반의 방향성 FC(GC, TE)와 생성모델 추론 기반의 유효 연결성(DCM)은 구별해야 "
+            "합니다. 전자는 '과거가 미래를 예측하는가', 후자는 '어떤 방향의 영향 모델이 데이터를 "
+            "가장 잘 설명하는가'를 묻습니다."
+        ),
+        what_this_simulation_can_show=(
+            "알려진 방향(쌍 P1→P2, 체인 A→B→C, fork C→{D,E}, 수렴 P1,A→F)이 있으므로 소스 "
+            "공간에서 방향 추정이 정답과 맞는지, 그리고 센서 공간과 G=0 대조에서 무엇이 거짓 "
+            "방향성으로 나타나는지 볼 수 있습니다."
+        ),
+        limitations=[
+            "방향성은 중요하지만 information flow를 정의하기에 충분하지 않습니다(내용·변환이 "
+            "빠짐).",
+            "실험적 개입 없이는 인과를 확증하지 못합니다.",
+        ],
+        applicability=_RESTING_OK,
+        pipeline_methods=["gc_pairwise", "gc_conditional", "te_gaussian", "effective_model"],
+        related_concepts=["granger_causality", "transfer_entropy", "effective_model"],
+        source_section="§1 표, §2 C (Nature Reviews Neuroscience 2024 리뷰 인용)",
+    ),
+    ConceptEntry(
+        id="information_flow",
+        kind="concept",
+        short_name="Information flow",
+        title="정보 흐름 (Information flow)",
+        question_answered="어떤 정보가 언제, 어디에서 어디로 전달되고 변환되는가?",
+        formula=None,
+        intuition=(
+            "방향성 연결에 더해 시간적 전파, 전달되는 정보의 내용, 수신 영역에서의 변환, 인과적 "
+            "영향을 함께 묻는 개념입니다. Direction(방향)·Content(내용)·Computation(계산)을 "
+            "독립적으로 물어야 합니다."
+        ),
+        what_this_simulation_can_show=(
+            "휴지기 시뮬레이션에서는 Level 1(방향)과 Level 3(PID로 본 통합)의 일부만 다룰 수 "
+            "있습니다. Level 2(내용)는 자극 라벨이 없으므로 계산하지 않고 '해당 없음'으로 "
+            "표시합니다."
+        ),
+        limitations=[
+            "TE 행렬 같은 정보 흐름 지표도 결국 하나의 방향성 FC 네트워크를 이룹니다: 분석상 "
+            "분리는 "
+            "가능하지만 개념적으로 완전히 분리되지는 않습니다.",
+            "SC·FC를 통제한 뒤에도 추가 설명력(incremental predictive validity)이 있는지 따로 "
+            "검증해야 합니다.",
+        ],
+        applicability=RestingEEGApplicability(
+            status="conditional",
+            reason=(
+                "방향과 통합(Level 1, 3)은 부분적으로 가능하지만 내용(Level 2)은 자극 라벨이 "
+                "필요합니다."
+            ),
+        ),
+        related_concepts=["level1_direction", "level2_content", "level3_computation"],
+        source_section="서론, §5, 결론",
+    ),
+    # ------------------------------------------------------------------ methods
+    ConceptEntry(
+        id="granger_causality",
+        kind="method",
+        short_name="GC",
+        title="Granger causality: 어느 영역이 다른 영역의 미래를 예측하는가?",
+        question_answered=(
+            "A의 과거를 알 때 B의 미래를 더 정확히 예측할 수 있는가 (B 자신의 과거, 조건부 "
+            "GC에서는 "
+            "다른 모든 관측 채널의 과거까지 이미 알고 있을 때)?"
+        ),
+        formula=(
+            r"B_t=\sum_{i=1}^{p} a_i B_{t-i}+\sum_{i=1}^{p} b_i A_{t-i}+\epsilon_t,\quad "
+            r"F_{A\rightarrow B}=\ln\frac{\operatorname{var}(\epsilon^{\mathrm{restricted}})}"
+            r"{\operatorname{var}(\epsilon^{\mathrm{full}})}"
+        ),
+        intuition=(
+            "A의 과거 항을 넣었을 때 B의 예측오차가 유의하게 줄면 A→B 방향의 Granger 영향이 있다고 "
+            "봅니다. 쌍별(pairwise) GC는 두 채널만, 조건부(conditional) GC는 다른 모든 채널의 "
+            "과거를 "
+            "함께 넣어 공통 원인·간접 경로를 일부 걸러냅니다. 시간 역전 검정은 순간 혼합(볼륨 "
+            "전도)과 "
+            "진짜 지연 상호작용을 구별하는 진단입니다."
+        ),
+        what_this_simulation_can_show=(
+            "소스 공간 G>0에서 조건부 GC가 실제 간선을 비간선보다 높게 순위 매기는지(AUC), 방향 "
+            "정확도, fork 형제 D↔E와 체인 간접경로 A→C의 허위 GC가 쌍별보다 조건부에서 약해지는지, "
+            "G=0 대조의 거짓 양성, 그리고 32채널 센서에서 G=0에도 나타나는 방향성 구조를 "
+            "보여줍니다."
+        ),
+        limitations=[
+            "directed predictability이지 물리적 정보 전달이나 인과적 영향이 아닙니다.",
+            "관측되지 않은 C가 A와 B를 다른 지연으로 구동하면 허위 A→B가 나타납니다.",
+            "선형 VAR 모델·차수 선택에 의존합니다. Jansen-Rit처럼 비선형·숨은 상태가 있는 "
+            "시스템에서는 "
+            "조건부 GC도 공통입력 효과를 완전히 제거하지 못할 수 있습니다.",
+            "강한 대역통과 필터는 GC를 왜곡하므로 이 파이프라인은 추세 제거와 약한 인과(causal) "
+            "고역통과만 합니다. 같은 0.5 Hz 고역통과를 zero-phase(비인과, filtfilt)로 걸면 이 "
+            "프리셋의 G=0 소스 조건부 GC 거짓 양성이 3/56에서 35/56으로 늘었습니다.",
+            "평균 기준전극 데이터는 rank가 부족해 32채널 조건부 GC가 거부됩니다(상태로 보고).",
+            "스펙트럼 GC는 flow.granger.spectral_gc로 제공되지만 이 파이프라인에서는 실행하지 "
+            "않습니다.",
+        ],
+        related_metric_id="M27",
+        flow_id="F01",
+        level=1,
+        applicability=_RESTING_OK,
+        pipeline_methods=["gc_pairwise", "gc_conditional", "gc_time_reversed"],
+        related_concepts=["common_input", "volume_conduction", "prediction_vs_causation"],
+        source_section="§2 A",
+    ),
+    ConceptEntry(
+        id="transfer_entropy",
+        kind="method",
+        short_name="TE",
+        title="Transfer entropy: 얼마나 많은 정보가 전달되는가?",
+        question_answered=(
+            "B 자신의 과거를 이미 알 때, A의 과거를 추가로 알면 B의 미래에 대한 불확실성이 얼마나 "
+            "줄어드는가?"
+        ),
+        formula=(
+            r"TE_{A\rightarrow B}=I(A_{\mathrm{past}};B_{\mathrm{future}}\mid B_{\mathrm{past}})"
+        ),
+        intuition=(
+            "조건부 상호정보량으로 정의된 정보 전달량(nats 또는 bits)입니다. 선형 Gaussian "
+            "과정에서는 "
+            "TE = GC/2로 GC와 같은 정보를 줍니다. KSG(최근접 이웃) 추정기는 비선형 의존성도 "
+            "포착하지만 "
+            "유한 표본 편향이 있고 음수가 나올 수 있습니다(잘라내지 않고 그대로 보고)."
+        ),
+        what_this_simulation_can_show=(
+            "Gaussian TE 전체 행렬과, 모티프 노드쌍(양방향)·대조 쌍에 대한 KSG TE를 소스와 "
+            "센서에서 "
+            "계산합니다. 같은 간선에서 Gaussian TE가 GC/2와 같아지는 것을 수치로 확인합니다."
+        ),
+        limitations=[
+            "TE가 유의해도 신호가 A에서 B로 실제 이동했다고 확정할 수 없습니다.",
+            "공통 원인을 조건화하지 않은 쌍별 TE는 허위 전달을 보입니다.",
+            "TE는 A의 고유 정보뿐 아니라 A와 B 과거의 synergistic 정보도 포함할 수 있습니다.",
+            "KSG는 임베딩·지연·k 선택과 표본 수에 민감하며 편향 보정이 필요합니다(대리자료 검정 "
+            "권장).",
+            "목표 자신의 과거 임베딩(k_hist)이 짧으면 진동 신호의 자기상관이 남아 분석적 χ² p값이 "
+            "부풀려집니다: 이 프리셋(k=l=2)에서는 G=0에서도 Gaussian TE 거짓 양성이 GC보다 "
+            "훨씬 많습니다.",
+        ],
+        related_metric_id="M28",
+        flow_id="F02",
+        level=1,
+        applicability=_RESTING_OK,
+        pipeline_methods=["te_gaussian", "te_ksg"],
+        related_concepts=["granger_causality", "pid", "common_input"],
+        source_section="§2 B",
+    ),
+    ConceptEntry(
+        id="effective_model",
+        kind="method",
+        short_name="DCM-style",
+        title="DCM 정신의 선형 유효 연결 모델: 어떤 방향 모델이 데이터를 가장 잘 설명하는가?",
+        question_answered=(
+            "명시한 후보 생성모델 가운데 어느 방향의 영향 모델이 데이터를 상대적으로 가장 잘 "
+            "설명하는가?"
+        ),
+        formula=(
+            r"\dot{\mathbf x}(t)=A\mathbf x(t)+C\mathbf u(t)\;\approx\;"
+            r"\mathbf x_{t+1}=A_d\mathbf x_t+\mathbf e_t,\; A=\log(A_d)/\Delta t,\;"
+            r"p(m\mid y)\propto e^{-\mathrm{BIC}_m/2}"
+        ),
+        intuition=(
+            "생성모델(잠재상태 x의 선형 동역학)을 세우고 후보 "
+            "그래프(forward/backward/양방향/없음/공통입력)"
+            "마다 적합한 뒤 BIC로 비교합니다. 실제 SPM DCM이 아닙니다: 신경질량·관측 모델과 변분 "
+            "베이즈가 없고 관측 채널을 잠재 상태로 직접 간주합니다."
+        ),
+        what_this_simulation_can_show=(
+            "쌍 P1→P2, 체인 A→B, fork 형제 D,E(구동자 C)에 대해 후보 모델 사후확률을 보여주고, "
+            "평가 "
+            "단계에서 정답 레이블과 비교합니다. G=0 대조에서도 '방향 있는' 모델이 선택되면, "
+            "모델 차수가 "
+            "부족해 진동하는 신경질량 신호를 잘못 기술(잔차 자기상관)했다는 신호입니다. 그래서 이 "
+            "파이프라인은 VAR 차수를 BIC로 골라 모든 시차에 같은 연결 마스크를 적용합니다."
+        ),
+        limitations=[
+            "실험적 개입 없이 인과를 확증하지 못하며, 명시한 모델들 가운데 상대적 선택일 뿐입니다.",
+            "후보에 없는 모델(숨은 공통입력, 비선형성, 센서 혼합)은 평가되지 않습니다.",
+            "모델 가정(여기서는 선형 VAR(p))이 틀리면 사후확률이 1에 가까워도 결론이 틀릴 수 "
+            "있습니다.",
+            "평균 기준전극처럼 rank가 부족한 데이터에서는 A가 식별되지 않아 'ineligible'입니다.",
+        ],
+        flow_id="F03",
+        level=1,
+        applicability=_RESTING_OK,
+        pipeline_methods=["effective_model"],
+        related_concepts=["directed_effective_connectivity", "prediction_vs_causation"],
+        source_section="§2 C",
+    ),
+    ConceptEntry(
+        id="activity_flow",
+        kind="method",
+        short_name="Activity flow",
+        title="Activity flow mapping: 연결망을 통한 활동 전파 모델이 목표 활동을 예측하는가?",
+        question_answered=(
+            "다른 영역들의 활동과 그 영역들의 연결 가중치만 알 때, 특정 영역의 활동을 예측할 수 "
+            "있는가?"
+        ),
+        formula=r"\hat a_j=\sum_{i\ne j}FC_{ij}\,a_i",
+        intuition=(
+            "Cole 등의 방법으로, 관측된 FC를 '활동이 흘러가는 통로'로 가정해 보류된 목표 활동을 "
+            "예측합니다. TRAIN 구간에서 FC를 추정하고 TEST 구간에서 예측력을 잽니다. Pearson FC는 "
+            "상관을 단순 합산하므로 크기가 어긋나 R²가 크게 음수일 수 있어 r(예측-실제 상관)로 "
+            "판단하고, 다중회귀 FC는 R²도 의미가 있습니다."
+        ),
+        what_this_simulation_can_show=(
+            "소스 공간과 32채널 센서에서 Pearson과 회귀 FC의 예측력(r)을 비교합니다. 센서에서는 "
+            "G=0에서도 볼륨 전도 때문에 예측이 잘 되므로, 공간 이웃을 예측변수에서 제외한 결과와 "
+            "제외하지 않은 결과를 함께 보고합니다."
+        ),
+        limitations=[
+            "정적 FC를 쓰면 시간적 방향성을 직접 측정하지 않습니다.",
+            "실제 신경 신호의 이동 경로를 추적하는 기술이 아니라 전파 모델의 예측력을 검증하는 "
+            "방법입니다.",
+            "센서 공간에서는 같은 소스가 여러 채널에 섞여 들어가 순환적 예측(누설)이 생깁니다.",
+            "원래는 과제 활성 패턴 예측에 쓰이며, 여기서는 휴지기 진폭 포락선에 적용한 교육용 "
+            "변형입니다.",
+        ],
+        flow_id="F04",
+        level=1,
+        applicability=RestingEEGApplicability(
+            status="conditional",
+            reason=(
+                "원래 방법은 과제 관련 활성을 예측합니다. 휴지기에서는 시간 구간을 나눠 활동 "
+                "포락선을 "
+                "예측하는 변형으로만 적용됩니다."
+            ),
+        ),
+        pipeline_methods=["activity_flow"],
+        related_concepts=["functional_connectivity", "volume_conduction"],
+        source_section="§2 D",
+    ),
+    ConceptEntry(
+        id="pid",
+        kind="method",
+        short_name="PID",
+        title="Partial information decomposition: 전달된 정보가 어떻게 통합되는가?",
+        question_answered=(
+            "두 소스 A, B가 목표 C에 주는 정보 중 얼마가 중복(redundant)·고유(unique)·시너지"
+            "(synergistic)인가? C가 두 입력을 통합하는 계산을 하는가?"
+        ),
+        formula=r"I(A,B;C)=R+U_A+U_B+S,\quad R_{\mathrm{MMI}}=\min\{I(A;C),I(B;C)\}",
+        intuition=(
+            "R은 두 소스가 공통으로 주는 정보, U는 한쪽만 주는 정보, S는 둘을 함께 보아야만 얻는 "
+            "정보입니다. 시간 변수를 지정하면(소스의 과거 → 목표의 미래) 방향성 있는 분해가 "
+            "됩니다. "
+            "PID 값은 중복정보 측도에 따라 달라집니다: Williams-Beer I_min은 2비트 COPY "
+            "T=(X1,X2)에 R=1, S=1비트(U1=U2=0)를 주지만 BROJA·I_ccs는 U1=U2=1비트를 줍니다 "
+            "(Harder et al. 2013 비판). 따라서 결과에는 항상 측도 이름을 함께 적습니다."
+        ),
+        what_this_simulation_can_show=(
+            "수렴 모티프(P1, A → F)의 목표 F와 fork 모티프(C, E → D)에 대해 시간지연 Gaussian "
+            "PID(MMI)를 G>0과 G=0에서 비교하고, 이산 교육용 예시(XOR=시너지, COPY=측도 의존성)를 "
+            "함께 보여줍니다."
+        ),
+        limitations=[
+            "고차원 추정이 어렵고 표본 편향(플러그인 추정의 양의 편향)이 있습니다.",
+            "중복정보 측도 선택에 따라 R/U/S 분할이 달라집니다(측도 의존적).",
+            "목표 자신의 과거를 조건화하지 않으면 자기상관·공통 입력이 중복정보로 나타날 수 "
+            "있습니다.",
+            "센서 공간에서는 볼륨 전도가 채널 간 공유 정보를 만들어 중복정보를 부풀립니다.",
+        ],
+        flow_id="F05",
+        level=3,
+        applicability=RestingEEGApplicability(
+            status="conditional",
+            reason=(
+                "자극 없이도 '소스 과거 → 목표 미래' 시간지연 PID는 계산되지만, 자극 정보의 통합 "
+                "(표현의 결합)을 묻는 PID는 자극 변수가 필요합니다."
+            ),
+        ),
+        pipeline_methods=["pid"],
+        related_concepts=["level3_computation", "transfer_entropy"],
+        source_section="§2 E, §3 Level 3 (Luppi et al. 2024)",
+    ),
+    # ------------------------------------------------------------------ levels
+    ConceptEntry(
+        id="level1_direction",
+        kind="level",
+        short_name="Level 1",
+        title="Level 1. 방향성 상호작용 (Direction / connectivity)",
+        question_answered="A의 활동이 B의 미래 활동을 예측하거나 B에 영향을 미치는가?",
+        formula=None,
+        intuition="GC, TE, DCM이 다루는 단계로, 실제 뇌 연구에서 비교적 잘 다루어지는 부분입니다.",
+        what_this_simulation_can_show=(
+            "GC·TE·선형 유효 모델·activity flow 결과가 모두 이 단계에 해당하며, 정답 그래프와 "
+            "비교됩니다."
+        ),
+        limitations=["방향을 알아도 무엇이(내용) 전달되었는지는 알 수 없습니다."],
+        level=1,
+        applicability=_RESTING_OK,
+        pipeline_methods=[
+            "gc_pairwise",
+            "gc_conditional",
+            "gc_time_reversed",
+            "te_gaussian",
+            "te_ksg",
+            "effective_model",
+            "activity_flow",
+        ],
+        related_concepts=["granger_causality", "transfer_entropy", "effective_model"],
+        source_section="§3, 결론",
+    ),
+    ConceptEntry(
+        id="level2_content",
+        kind="level",
+        short_name="Level 2",
+        title="Level 2. 정보 전송 (Content / representation)",
+        question_answered=(
+            "A에 표현되어 있던 특정 정보(자극의 정체·방위·범주)가 B에서도 나타나는가? 어떤 시간 "
+            "지연과 "
+            "경로를 보이는가?"
+        ),
+        formula=r"\text{decode}_{t}(\text{stimulus} \mid x_A(t)) \;\rightarrow\; "
+        r"\text{decode}_{t+\tau}(\text{stimulus} \mid x_B(t+\tau))",
+        intuition=(
+            "시간 분해 디코딩, 표상 유사성 분석, 자극 조건부 정보 분석으로 특정 표현이 언제 어느 "
+            "영역에 "
+            "재현되는지 추적합니다."
+        ),
+        what_this_simulation_can_show=(
+            "보여줄 수 없습니다. 휴지기 시뮬레이션에는 자극도 자극 라벨도 없으므로 디코딩할 "
+            "'내용'이 "
+            "정의되지 않습니다. 파이프라인은 이 단계를 status=not_applicable(no_stimulus_labels)로 "
+            "명시적으로 보고합니다."
+        ),
+        limitations=[
+            "자극/과제 라벨과 반복 시행이 필요합니다.",
+            "GC·TE가 유의해도 어떤 특징이 전달되었는지는 알려주지 않습니다.",
+        ],
+        level=2,
+        applicability=RestingEEGApplicability(
+            status="not_applicable",
+            reason=(
+                "내용(content)은 '무엇에 대한 정보인가'를 정의할 외부 변수(자극 라벨)가 있어야 "
+                "측정됩니다. "
+                "휴지기 EEG에는 그런 변수가 없어 디코딩 대상이 존재하지 않습니다."
+            ),
+        ),
+        pipeline_methods=["level2_content_decoding"],
+        related_concepts=["information_flow"],
+        source_section="§3 Level 2",
+    ),
+    ConceptEntry(
+        id="level3_computation",
+        kind="level",
+        short_name="Level 3",
+        title="Level 3. 정보 변환 (Computation / transformation)",
+        question_answered="B가 전달받은 정보를 다른 입력과 결합해 새로운 표현을 형성하는가?",
+        formula=r"S = I(A,B;C) - I(A;C) - I(B;C) + R",
+        intuition=(
+            "단순 전달을 넘어 정보가 보존·변환·통합되는지를 묻습니다. PID, 비선형 상태공간 모델, "
+            "계산 모델링이 쓰입니다."
+        ),
+        what_this_simulation_can_show=(
+            "수렴 노드 F가 두 소스의 과거를 함께 볼 때 추가 예측정보(시너지)를 갖는지 시간지연 "
+            "PID로 "
+            "봅니다. 자극 표현의 통합은 다루지 않습니다."
+        ),
+        limitations=[
+            "시너지 > 0이 곧 '계산'을 증명하지 않습니다(측도 의존, 선형 합산도 MMI 시너지를 "
+            "만듭니다).",
+        ],
+        level=3,
+        applicability=RestingEEGApplicability(
+            status="conditional",
+            reason="시간지연 PID는 가능하지만 자극 표현의 변환은 자극 변수가 필요합니다.",
+        ),
+        pipeline_methods=["pid"],
+        related_concepts=["pid"],
+        source_section="§3 Level 3, 결론",
+    ),
+    # ------------------------------------------------------------------ caveats
+    ConceptEntry(
+        id="volume_conduction",
+        kind="caveat",
+        short_name="Volume conduction",
+        title="볼륨 전도와 소스 누설 (EEG 주의점)",
+        question_answered=(
+            "센서 채널 사이의 의존성이 뇌 영역 간 상호작용 때문인가, 같은 소스가 여러 전극에 섞여 "
+            "들어갔기 때문인가?"
+        ),
+        formula=r"\mathbf y(t) = R\,(L\,\mathbf q(t) + \mathbf n(t))",
+        intuition=(
+            "각 전극은 여러 소스의 순간적 선형 혼합(리드필드 L)을 기록합니다. 혼합은 지연이 없지만 "
+            "소스마다 자기상관과 잡음 수준이 달라 GC·TE에 거짓 방향을 만들 수 있습니다."
+        ),
+        what_this_simulation_can_show=(
+            "32채널 센서 데이터에서 G=0(소스 간 상호작용 없음)에도 유의한 GC 쌍과 activity flow "
+            "예측이 "
+            "나타나는 정도를 보고합니다. 센서 노드는 소스가 아니므로 정답 기반 정밀도/재현율은 "
+            "계산하지 "
+            "않습니다. 시간 역전 GC는 순간 혼합을 진단하는 데 쓰입니다."
+        ),
+        limitations=[
+            "센서 수준 분석만으로 해부학적 정보 전달 경로를 주장하면 안 되며, 소스 재구성과 "
+            "조건부 분석을 "
+            "함께 써야 합니다.",
+            "소스 재구성도 누설(leakage)을 완전히 제거하지 못합니다.",
+        ],
+        applicability=_RESTING_OK,
+        related_concepts=["reference", "common_input"],
+        source_section="§4 마지막 문단",
+    ),
+    ConceptEntry(
+        id="common_input",
+        kind="caveat",
+        short_name="Common input",
+        title="공통 입력 (제3의 영역이 둘을 동시에 구동)",
+        question_answered=(
+            "A와 B의 의존성이 직접 상호작용인가, 관측되지 않은(또는 조건화하지 않은) 공통 구동자 "
+            "때문인가?"
+        ),
+        formula=r"C \rightarrow D,\; C \rightarrow E \;\Rightarrow\; D \not\perp E",
+        intuition=(
+            "C가 D와 E를 서로 다른 지연으로 구동하면 D→E 또는 E→D의 허위 방향성이 나타납니다. "
+            "C를 조건화(조건부 GC/TE)하면 줄어들지만, C가 관측되지 않거나 비선형이면 남습니다."
+        ),
+        what_this_simulation_can_show=(
+            "fork 모티프 C→{D,E}의 형제 D↔E에서 쌍별 GC와 조건부 GC를 비교합니다. 체인 A→B→C의 "
+            "간접 경로 A→C도 같은 방식으로 비교합니다."
+        ),
+        limitations=["모든 공통 원인을 관측하는 것은 현실적으로 불가능합니다."],
+        applicability=_RESTING_OK,
+        related_concepts=["granger_causality", "transfer_entropy"],
+        source_section="§1 (해석 목록), §2 A",
+    ),
+    ConceptEntry(
+        id="reference",
+        kind="caveat",
+        short_name="Reference",
+        title="기준전극 (reference) 선택",
+        question_answered="채널 간 관계가 기준전극 변환 때문에 생기거나 사라지는가?",
+        formula=r"R_{\mathrm{avg}} = I - \tfrac{1}{n}\mathbf 1\mathbf 1^\top",
+        intuition=(
+            "모든 채널은 기준과의 전위차입니다. 공통 기준은 모든 채널에 같은 신호를 더해 공유 "
+            "의존성을 "
+            "만들고, 평균 기준은 rank를 하나 줄여 전체 채널 VAR·선형 모델을 식별 불가능하게 "
+            "만듭니다."
+        ),
+        what_this_simulation_can_show=(
+            "기본은 순방향 모델의 무한대 기준(reference='none')입니다. 레시피에서 평균 기준을 "
+            "켜면 32채널 "
+            "조건부 GC와 유효 모델이 rank 부족으로 거부되는 것을 상태(status)로 볼 수 있습니다."
+        ),
+        limitations=["어떤 기준도 중립적이지 않으며 결과는 기준 선택과 함께 보고해야 합니다."],
+        applicability=_RESTING_OK,
+        related_concepts=["volume_conduction"],
+        source_section="§4 (EEG 주의점) — 기준전극은 문서의 볼륨 전도 논의를 확장한 것",
+    ),
+    ConceptEntry(
+        id="prediction_vs_causation",
+        kind="caveat",
+        short_name="Prediction ≠ causation",
+        title="예측은 인과가 아니다 — 개입이 필요한 이유",
+        question_answered="관찰 자료의 방향성 지표가 실제 인과적 전파를 의미하는가?",
+        formula=None,
+        intuition=(
+            "GC·TE는 예측, DCM은 명시한 모델 간 상대 비교입니다. 인과적 전파에 대한 강한 증거는 "
+            "TMS–EEG·전기자극 같은 개입에서 나옵니다. 다만 개입으로 관찰하는 것은 자연 상태의 "
+            "정보 흐름이 "
+            "아니라 자극으로 유도된 반응의 전파입니다."
+        ),
+        what_this_simulation_can_show=(
+            "시뮬레이션에서는 정답(C)을 알기 때문에 예측 지표가 언제 맞고 언제 틀리는지를 직접 "
+            "확인할 수 있습니다. 실제 데이터에는 이런 정답이 없습니다."
+        ),
+        limitations=["휴지기 관찰 자료만으로는 인과를 확증할 수 없습니다."],
+        applicability=_RESTING_OK,
+        related_concepts=["granger_causality", "effective_model"],
+        source_section="§2 A/C, §4 마지막 문단",
+    ),
+)
+
+# Pipeline method id -> concept id it is explained by.
+METHOD_CONCEPTS: dict[str, str] = {
+    "gc_pairwise": "granger_causality",
+    "gc_conditional": "granger_causality",
+    "gc_time_reversed": "granger_causality",
+    "te_gaussian": "transfer_entropy",
+    "te_ksg": "transfer_entropy",
+    "effective_model": "effective_model",
+    "activity_flow": "activity_flow",
+    "pid": "pid",
+    "level2_content_decoding": "level2_content",
+}
+
+SUMMARY = (
+    "방향성은 information flow의 중요한 차이지만 충분한 차이는 아닙니다. 정보 흐름을 이해하려면 "
+    "방향(Direction), 전달되는 내용(Content), 수신 영역에서의 변환(Computation)을 독립적으로 "
+    "물어야 합니다. 이 실습은 정답 그래프를 아는 Jansen-Rit 시뮬레이션에서 각 지표가 무엇을 "
+    "보여주고 무엇을 보여주지 못하는지(볼륨 전도, 공통 입력, 예측 vs 인과)를 확인합니다."
+)
+
+FRAMEWORK = [
+    "Direction: A에서 B로 영향이 향하는가? (Level 1 — GC, TE, DCM)",
+    "Content: A에 존재하던 어떤 정보가 B에 도달하는가? (Level 2 — 자극 라벨 필요, 휴지기에서는 "
+    "해당 없음)",
+    "Computation: B에서 그 정보가 보존·변환·통합되는가? (Level 3 — PID)",
+]
+
+
+def concepts() -> tuple[ConceptEntry, ...]:
+    return _ENTRIES
+
+
+def concept_ids() -> list[str]:
+    return [entry.id for entry in _ENTRIES]
+
+
+def get_concept(concept_id: str) -> ConceptEntry:
+    for entry in _ENTRIES:
+        if entry.id == concept_id:
+            return entry
+    raise KeyError(f"unknown concept id {concept_id!r}; known: {concept_ids()}")
+
+
+def concept_for_method(method_id: str) -> ConceptEntry:
+    return get_concept(METHOD_CONCEPTS[method_id])
+
+
+def catalog() -> ConceptCatalog:
+    return ConceptCatalog(
+        version=CATALOG_VERSION,
+        source_document=SOURCE_DOCUMENT,
+        summary=SUMMARY,
+        framework=FRAMEWORK,
+        entries=list(_ENTRIES),
+    )
+
+
+def catalog_json(indent: int | None = 2) -> str:
+    return catalog().model_dump_json(indent=indent)
+
+
+__all__ = [
+    "CATALOG_VERSION",
+    "FRAMEWORK",
+    "METHOD_CONCEPTS",
+    "SOURCE_DOCUMENT",
+    "SUMMARY",
+    "ConceptCatalog",
+    "ConceptEntry",
+    "RestingEEGApplicability",
+    "catalog",
+    "catalog_json",
+    "concept_for_method",
+    "concept_ids",
+    "concepts",
+    "get_concept",
+]

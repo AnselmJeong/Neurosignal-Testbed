@@ -249,6 +249,7 @@ def spectral_summary(params: dict[str, Any], inputs: dict[str, np.ndarray]) -> T
 def metric(params: dict[str, Any], inputs: dict[str, np.ndarray]) -> TaskOutput:
     """Run one registered metric adapter on an epoch artifact."""
     import neurobridge.metrics.connectivity  # noqa: F401  (registers M11-M20)
+    import neurobridge.metrics.directed  # noqa: F401  (registers M27/M28)
     import neurobridge.metrics.information  # noqa: F401  (registers M22/M23)
     from neurobridge.metrics import registry
 
