@@ -161,6 +161,7 @@ def _finite(value: float) -> float | None:
 @router.get("/capabilities")
 def capabilities() -> dict[str, Any]:
     import neurobridge.metrics.connectivity  # noqa: F401  (registers adapters)
+    import neurobridge.metrics.directed  # noqa: F401  (registers M27/M28)
     import neurobridge.metrics.information  # noqa: F401
 
     metrics = metric_registry.capabilities()

@@ -1,0 +1,244 @@
+{
+  "recipe_version": "1.0",
+  "kind": "flow-pipeline",
+  "title": "Information flow on simulated 32-channel EEG · full",
+  "profile": "full",
+  "status": "unvalidated_starting_values",
+  "notes": [
+    "Educational pipeline: TVB Jansen-Rit sources with a KNOWN directed graph (graph.edges = [source, target]) observed through the 32-channel sphere-model eeg_forward.",
+    "graph.edges is generation truth: it builds C[target, source] for the simulation and is read again only by the source-space evaluation after the analysis results are frozen.",
+    "analysis.* are the analyst's hypotheses (node groups, model-comparison pairs, PID triplets); they never contain edge directions. 'forward' in a model comparison means nodes[0] -> nodes[1].",
+    "sensor_noise_std (V) is absolute, about 10% of the median channel std of this preset with gain 1 A·m/mV; it keeps 32 channels built from 8 sources full rank.",
+    "Preprocessing for GC/TE: linear detrend, causal 0.5 Hz high-pass (2 s transient discarded), anti-aliased decimation 256 -> 128 Hz (the 8 ms delay is ~1 sample). No band-pass. A zero-phase (sosfiltfilt) high-pass is available via highpass_phase='zero_phase' but raised source-space G=0 conditional-GC false positives from 3/56 to 35/56 in this preset.",
+    "Starting values, not validated physiology.",
+    "full: 120 s, average reference added (32-channel conditional GC / effective model become rank-deficient and are reported as statuses), per-pair GC order selection, 19 circular-shift surrogates for KSG TE."
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "P1",
+        "label": "pair source",
+        "role": "pair"
+      },
+      {
+        "id": "P2",
+        "label": "pair target",
+        "role": "pair"
+      },
+      {
+        "id": "A",
+        "label": "chain start",
+        "role": "chain"
+      },
+      {
+        "id": "B",
+        "label": "chain middle",
+        "role": "chain"
+      },
+      {
+        "id": "C",
+        "label": "chain end / fork driver",
+        "role": "chain+fork"
+      },
+      {
+        "id": "D",
+        "label": "fork branch",
+        "role": "fork"
+      },
+      {
+        "id": "E",
+        "label": "fork branch",
+        "role": "fork"
+      },
+      {
+        "id": "F",
+        "label": "convergence target",
+        "role": "convergence"
+      }
+    ],
+    "edges": [
+      [
+        "P1",
+        "P2"
+      ],
+      [
+        "A",
+        "B"
+      ],
+      [
+        "B",
+        "C"
+      ],
+      [
+        "C",
+        "D"
+      ],
+      [
+        "C",
+        "E"
+      ],
+      [
+        "P1",
+        "F"
+      ],
+      [
+        "A",
+        "F"
+      ]
+    ],
+    "weight": 1.0,
+    "delay_ms": 8.0,
+    "normalize_rows": true
+  },
+  "simulation": {
+    "G": 10.0,
+    "control_G": 0.0,
+    "duration_s": 120.0,
+    "burn_in_s": 5.0,
+    "seed": 7,
+    "output_fs": 256
+  },
+  "observation": {
+    "n_sensors": 32,
+    "references": [
+      "none",
+      "average"
+    ],
+    "sensor_noise_std": 25.0,
+    "gain": 1.0,
+    "include_source_native": true
+  },
+  "preprocessing": {
+    "detrend": true,
+    "highpass_hz": 0.5,
+    "highpass_order": 2,
+    "highpass_phase": "causal",
+    "highpass_settle_s": 2.0,
+    "decimate": 2
+  },
+  "methods": {
+    "alpha": 0.05,
+    "gc": {
+      "criterion": "bic",
+      "max_order": 12,
+      "min_obs_per_param": 10.0,
+      "pairwise_order": "per_pair",
+      "time_reversed": true
+    },
+    "te": {
+      "k_hist": 2,
+      "l_hist": 2,
+      "lag": 1,
+      "ksg": true,
+      "k_neighbors": 4,
+      "theiler": 0,
+      "n_surrogates": 19,
+      "seed": 0
+    },
+    "effective": {
+      "lowpass_hz": null,
+      "whiteness_lags": 20
+    },
+    "activity_flow": {
+      "activity": "envelope",
+      "band": [
+        5.0,
+        13.0
+      ],
+      "train_fraction": 0.6,
+      "gap_s": 1.0,
+      "ridge_alpha": 1.0,
+      "neighbor_radius_m": 0.05
+    },
+    "pid": {
+      "lag": 1,
+      "history": 2,
+      "teaching_examples": true
+    }
+  },
+  "analysis": {
+    "motifs": {
+      "pair": [
+        "P1",
+        "P2"
+      ],
+      "chain": [
+        "A",
+        "B",
+        "C"
+      ],
+      "fork": [
+        "C",
+        "D",
+        "E"
+      ],
+      "convergence": [
+        "P1",
+        "A",
+        "F"
+      ]
+    },
+    "control_pairs": [
+      [
+        "P2",
+        "D"
+      ],
+      [
+        "F",
+        "E"
+      ]
+    ],
+    "model_comparisons": [
+      {
+        "name": "pair_P1_P2",
+        "nodes": [
+          "P1",
+          "P2"
+        ],
+        "driver": null
+      },
+      {
+        "name": "chain_A_B",
+        "nodes": [
+          "A",
+          "B"
+        ],
+        "driver": null
+      },
+      {
+        "name": "fork_D_E",
+        "nodes": [
+          "D",
+          "E"
+        ],
+        "driver": "C"
+      },
+      {
+        "name": "convergence_P1_F",
+        "nodes": [
+          "P1",
+          "F"
+        ],
+        "driver": null
+      }
+    ],
+    "pid_triplets": [
+      {
+        "name": "convergence_F",
+        "sources": [
+          "P1",
+          "A"
+        ],
+        "target": "F"
+      },
+      {
+        "name": "fork_D",
+        "sources": [
+          "C",
+          "E"
+        ],
+        "target": "D"
+      }
+    ]
+  }
+}

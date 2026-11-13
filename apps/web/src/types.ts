@@ -644,3 +644,12 @@ export type {
   MetricCapability as BenchmarkMetricCapability,
   PairedEffect as BenchmarkPairedEffect,
 } from './features/benchmarks/types'
+
+// Information Flow lab contracts live with the feature; re-exported for shared imports.
+export type {
+  ConceptCatalog as FlowConceptCatalog,
+  ConceptEntry as FlowConceptEntry,
+  FlowRecipe,
+  FlowResult,
+  FlowRunStatus,
+} from './features/flow/types'

@@ -31,14 +31,24 @@ describe('LabNavigator lesson progress', () => {
 })
 
 describe('LabNavigator labs', () => {
-  it('lists seven labs including JR Benchmark and switches to it', () => {
+  it('lists JR Benchmark as lab 07 and switches to it', () => {
     const onLabChange = vi.fn()
     render(<LabNavigator activeLab="filter" onLabChange={onLabChange} steps={steps} step={0} />)
 
     const labs = within(screen.getByRole('region', { name: 'Labs' })).getAllByRole('button')
-    expect(labs).toHaveLength(7)
     expect(labs[6]).toHaveTextContent('07JR Benchmark')
     labs[6]!.click()
     expect(onLabChange).toHaveBeenCalledWith('benchmark')
+  })
+
+  it('lists eight labs with Information Flow last and switches to it', () => {
+    const onLabChange = vi.fn()
+    render(<LabNavigator activeLab="filter" onLabChange={onLabChange} steps={steps} step={0} />)
+
+    const labs = within(screen.getByRole('region', { name: 'Labs' })).getAllByRole('button')
+    expect(labs).toHaveLength(8)
+    expect(labs[7]).toHaveTextContent('08Information Flow')
+    labs[7]!.click()
+    expect(onLabChange).toHaveBeenCalledWith('flow')
   })
 })

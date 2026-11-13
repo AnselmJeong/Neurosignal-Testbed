@@ -18,7 +18,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 import { AboutExperience } from './components/AboutDialog'
 import { LineChart } from './components/Charts'
@@ -32,6 +32,9 @@ import { SourceModelWorkbench } from './components/SourceModelWorkbench'
 import { BenchmarkWorkbench } from './features/benchmarks/BenchmarkWorkbench'
 import { checkHealth, runRecipe } from './lib/api'
 import { defaultRecipe, type ExperimentRecipe, type ExperimentResult, type RequestState } from './types'
+
+// The Information Flow lab is loaded on demand so it does not grow the initial bundle.
+const FlowWorkbench = lazy(() => import('./features/flow/FlowWorkbench').then((module) => ({ default: module.FlowWorkbench })))
 
 const STEPS = [
   { label: 'Predict', description: 'Write what you expect the filter to preserve.', icon: CircleHelp },
@@ -212,7 +215,7 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : <>
+      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'flow' ? <Suspense fallback={<main className="workspace"><p className="empty-stage" role="status">Information Flow 실습을 불러오는 중…</p></main>}><FlowWorkbench activeLab={activeLab} onLabChange={setActiveLab} /></Suspense> : <>
         <main className="workspace">
         <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} />
 

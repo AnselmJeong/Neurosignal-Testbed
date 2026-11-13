@@ -10,9 +10,10 @@ import {
   Waves,
   ChartNoAxesCombined,
   Network,
+  Workflow,
 } from 'lucide-react'
 
-export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark'
+export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
 
 export interface LabStep {
   label: string
@@ -48,6 +49,10 @@ const LABS: Record<LabId, { number: string; label: string; title: string; object
   benchmark: {
     number: '07', label: 'JR Benchmark', title: '결합이 바뀌면 무엇이 달라지는가?',
     objective: 'JR 네트워크로 네 조건을 생성하고 PLV·wPLI·wSMI의 seed paired 효과와 신뢰구간을 비교합니다.', minutes: '20 min+', icon: Network,
+  },
+  flow: {
+    number: '08', label: 'Information Flow', title: '연결성은 정보 흐름인가?',
+    objective: '정답 방향을 아는 JR 소스와 그 EEG에서 GC·TE·DCM식 모델·activity flow·PID가 보여주는 것과 놓치는 것을 비교합니다.', minutes: '20 min', icon: Workflow,
   },
 }
 
