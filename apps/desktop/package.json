@@ -1,0 +1,20 @@
+{
+  "name": "neurosignal-testbed-desktop",
+  "version": "0.2.5",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NEUROSIGNAL_PROJECT_ROOT=\"$(cd ../.. && pwd)\" electrobun dev",
+    "build": "../../scripts/desktop/build_app.sh",
+    "typecheck": "test -f .hutch/devkit/tsconfig.json || electrobun prepare >/dev/null; tsc --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "icon": "bun scripts/make_icon.ts"
+  },
+  "dependencies": {
+    "electrobun": "2.0.6"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "5.9.3"
+  }
+}

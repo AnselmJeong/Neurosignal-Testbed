@@ -1,0 +1,3 @@
+[test]
+# Only our tests; the projected Electrobun SDK in .hutch/ ships its own *.test.ts files.
+root = "tests"
