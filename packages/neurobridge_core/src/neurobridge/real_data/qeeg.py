@@ -29,6 +29,7 @@ from neurobridge.contracts.models import (
     SeriesData,
     WarningMessage,
 )
+from neurobridge.display import round_significant
 
 from .service import WORKING_COPY_NAME, _load_manifest, _sha256, default_project_root
 
@@ -383,9 +384,10 @@ def run_qeeg_analysis(
             y_unit="µV",
         ),
         frequency_hz=np.round(frequencies, 5).tolist(),
-        mean_psd_uv2_hz=np.round(np.mean(psd, axis=0), 8).tolist(),
+        mean_psd_uv2_hz=round_significant(np.mean(psd, axis=0)).tolist(),
         psd_by_channel_uv2_hz={
-            name: np.round(values, 8).tolist() for name, values in zip(eeg_names, psd, strict=True)
+            name: round_significant(values).tolist()
+            for name, values in zip(eeg_names, psd, strict=True)
         },
         band_powers=band_powers,
         theta_beta_ratio_by_channel=ratio_by_channel,
