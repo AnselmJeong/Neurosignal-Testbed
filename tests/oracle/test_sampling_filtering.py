@@ -109,3 +109,51 @@ def test_sampling_below_source_frequency_reports_alias_warning() -> None:
         )
     )
     assert "source_aliasing" in {warning.code for warning in result.warnings}
+
+
+def test_notch_removes_line_noise_that_the_low_pass_leaves_in() -> None:
+    def line_power(notch_hz: float | None) -> float:
+        result = run_experiment(
+            ExperimentRecipe(
+                preprocessing=PreprocessingSpec(lowpass_hz=100, notch_hz=notch_hz),
+            )
+        )
+        frequency = np.asarray(result.spectrum.frequency_hz)
+        return float(np.asarray(result.spectrum.filtered_power)[np.argmin(np.abs(frequency - 60))])
+
+    assert line_power(60) < line_power(None) * 0.01
+
+
+def test_notch_appears_in_the_reported_filter_response_and_spares_alpha() -> None:
+    simulation = simulate_linear_mixture(SimulationSpec())
+    with_notch = apply_preprocessing(
+        simulation.sensor_uv, 250, PreprocessingSpec(lowpass_hz=100, notch_hz=60)
+    )
+    frequency = with_notch.response_frequency_hz
+    assert with_notch.response_gain_db[np.argmin(np.abs(frequency - 60))] < -20
+    assert abs(with_notch.response_gain_db[np.argmin(np.abs(frequency - 10))]) < 0.5
+
+
+def test_trace_view_keeps_every_sample_on_a_uniform_time_axis() -> None:
+    for sampling_rate_hz in (200, 250, 500):
+        result = run_experiment(
+            ExperimentRecipe(simulation=SimulationSpec(sampling_rate_hz=sampling_rate_hz))
+        )
+        steps = np.diff(result.traces.x)
+        assert len(result.traces.x) == 8 * sampling_rate_hz
+        np.testing.assert_allclose(steps, 1 / sampling_rate_hz, atol=1e-4)
+
+
+def test_very_long_trace_views_are_thinned_with_a_uniform_stride() -> None:
+    result = run_experiment(
+        ExperimentRecipe(simulation=SimulationSpec(duration_s=60, sampling_rate_hz=1000))
+    )
+    steps = np.diff(result.traces.x)
+    assert len(result.traces.x) <= 20_000
+    np.testing.assert_allclose(steps, steps[0], atol=1e-4)
+
+
+def test_stop_band_power_is_reported_rather_than_rounded_to_zero() -> None:
+    result = run_experiment(ExperimentRecipe())
+    filtered = np.asarray(result.spectrum.filtered_power)
+    assert np.all(filtered > 0)

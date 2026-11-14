@@ -401,7 +401,8 @@ function App() {
             {result && request.status !== 'loading' && view === 'Filter response' && (
               <LineChart
                 x={result.filter_response.frequency_hz}
-                series={[{ label: `${result.recipe.preprocessing.highpass_hz}–${result.recipe.preprocessing.lowpass_hz} Hz gain`, values: result.filter_response.gain_db, color: '#087f83' }]}
+                series={[{ label: filterResponseLabel(result.recipe), values: result.filter_response.gain_db, color: '#087f83' }]}
+                xDomain={[0, result.recipe.simulation.sampling_rate_hz / 2]}
                 xLabel="Frequency (Hz)"
                 yLabel="Gain (dB)"
                 yDomain={[-80, 5]}
@@ -522,6 +523,20 @@ interface RangeControlProps {
   step: number
   unit: string
   onChange: (value: number) => void
+}
+
+// Names only the stages that were actually applied; filters at or above Nyquist are skipped.
+function filterResponseLabel(recipe: ExperimentRecipe): string {
+  const nyquist = recipe.simulation.sampling_rate_hz / 2
+  const applied = (value: number | null) => value !== null && value < nyquist ? value : null
+  const highpass = applied(recipe.preprocessing.highpass_hz)
+  const lowpass = applied(recipe.preprocessing.lowpass_hz)
+  const notch = applied(recipe.preprocessing.notch_hz)
+  const passband = highpass !== null && lowpass !== null ? `${highpass}–${lowpass} Hz band-pass`
+    : highpass !== null ? `${highpass} Hz high-pass`
+      : lowpass !== null ? `${lowpass} Hz low-pass` : null
+  const stages = [passband, notch !== null ? `${notch} Hz notch` : null].filter((stage) => stage !== null)
+  return stages.length ? `${stages.join(' + ')} · zero-phase gain` : 'No filter applied'
 }
 
 function RangeControl({ label, help, value, min, max, step, unit, onChange }: RangeControlProps & { help: string }) {

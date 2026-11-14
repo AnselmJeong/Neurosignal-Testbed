@@ -1,6 +1,6 @@
 # Neurosignal Testbed
 
-The Real data lab now includes `@neurosignal/trace-viewer` 0.4.1 after FIF import. It reads only
+The Real data lab now includes `@neurosignal/trace-viewer` 0.4.2 after FIF import. It reads only
 the requested time/channel window from the imported working copy, offers Canvas navigation,
 and preserves the original recording. The portable package tarball is in `apps/web/vendor/`.
 Trace metadata/window routes are read-only; **Refresh traces** reloads changed working-copy metadata.

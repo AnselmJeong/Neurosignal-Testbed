@@ -98,6 +98,19 @@ def _design_sos(sampling_rate_hz: float, spec: PreprocessingSpec) -> NDArray[np.
     return None
 
 
+# Quality factor of the line-noise notch: a -3 dB bandwidth of notch_hz / 30 (2 Hz at 60 Hz).
+NOTCH_QUALITY = 30.0
+
+
+def _design_notch_sos(
+    sampling_rate_hz: float, spec: PreprocessingSpec
+) -> NDArray[np.float64] | None:
+    if spec.notch_hz is None or spec.notch_hz >= sampling_rate_hz / 2:
+        return None
+    numerator, denominator = signal.iirnotch(spec.notch_hz, NOTCH_QUALITY, fs=sampling_rate_hz)
+    return signal.tf2sos(numerator, denominator)
+
+
 def apply_preprocessing(
     sensor_uv: NDArray[np.float64], sampling_rate_hz: float, spec: PreprocessingSpec
 ) -> FilteredData:
@@ -106,11 +119,17 @@ def apply_preprocessing(
     values = np.asarray(sensor_uv, dtype=float).copy()
     if spec.reference == "average":
         values -= values.mean(axis=0, keepdims=True)
-    sos = _design_sos(sampling_rate_hz, spec)
-    if sos is not None:
+    sections = [
+        sos
+        for sos in (_design_sos(sampling_rate_hz, spec), _design_notch_sos(sampling_rate_hz, spec))
+        if sos is not None
+    ]
+    if sections:
+        sos = np.vstack(sections)
         values = signal.sosfiltfilt(sos, values, axis=-1)
         frequency, response = signal.sosfreqz(sos, worN=512, fs=sampling_rate_hz)
-        gain_db = 20 * np.log10(np.maximum(np.abs(response), 1e-8))
+        # sosfiltfilt runs the filter forward and backward, so the data see |H|², not |H|.
+        gain_db = 40 * np.log10(np.maximum(np.abs(response), 1e-8))
     else:
         frequency = np.linspace(0, sampling_rate_hz / 2, 512)
         gain_db = np.zeros_like(frequency)

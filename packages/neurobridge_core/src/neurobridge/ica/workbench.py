@@ -28,6 +28,7 @@ from neurobridge.contracts.models import (
     SeriesData,
     WarningMessage,
 )
+from neurobridge.display import round_significant, view_indices
 
 CHANNEL_NAMES = ("Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2")
 TRUTH_LABELS = ("alpha", "theta", "beta", "blink")
@@ -254,19 +255,13 @@ def _label_components(
         return ["unavailable"] * count, [0.0] * count, False, warnings
 
 
-def _view_indices(length: int, maximum: int = 720) -> NDArray[np.int64]:
-    if length <= maximum:
-        return np.arange(length, dtype=int)
-    return np.linspace(0, length - 1, maximum, dtype=int)
-
-
 def simulate_ica_input(recipe: IcaRecipe) -> IcaSimulationResult:
     """Generate the contaminated sensor EEG without fitting a decomposition."""
 
     simulation = simulate_artifact_recipe(recipe)
     raw = _raw_from_uv(simulation.raw_sensor_uv, recipe)
     rank = int(mne.compute_rank(raw, rank=None, verbose=False)["eeg"])
-    view = _view_indices(simulation.time_s.size)
+    view = view_indices(simulation.time_s.size)
     recipe_hash = hashlib.sha256(recipe.model_dump_json().encode()).hexdigest()[:12]
     return IcaSimulationResult(
         run_id=f"ica_input_{uuid.uuid4().hex[:10]}",
@@ -302,7 +297,7 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
 
     fitted = _fit(recipe)
     suggestions, probabilities, available, warnings = _label_components(fitted)
-    view = _view_indices(fitted.simulation.time_s.size)
+    view = view_indices(fitted.simulation.time_s.size)
     topographies = fitted.ica.get_components()
     components: list[IcaComponentSummary] = []
     for index, source in enumerate(fitted.component_sources):
@@ -328,7 +323,7 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
                 time_s=np.round(fitted.simulation.time_s[view], 4).tolist(),
                 trace=np.round(source[view], 5).tolist(),
                 frequency_hz=np.round(frequency, 4).tolist(),
-                power=np.round(power, 8).tolist(),
+                power=round_significant(power).tolist(),
                 topography=np.round(component_topography, 4).tolist(),
             )
         )
@@ -415,7 +410,7 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
         np.mean((cleaned_neural_control_uv - fitted.simulation.clean_target_uv) ** 2)
     )
     distortion_pct = float(distortion / max(neural_rms, np.finfo(float).eps) * 100)
-    view = _view_indices(fitted.simulation.time_s.size)
+    view = view_indices(fitted.simulation.time_s.size)
     warnings: list[WarningMessage] = []
     if not exclusions:
         warnings.append(

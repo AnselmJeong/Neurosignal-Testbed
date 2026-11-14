@@ -18,14 +18,9 @@ from neurobridge.contracts.models import (
     SeriesData,
     SpectrumData,
 )
+from neurobridge.display import round_significant, view_indices
 from neurobridge.preprocessing import apply_preprocessing, validate_recipe
 from neurobridge.simulation import simulate_linear_mixture
-
-
-def _downsample_indices(length: int, maximum: int = 1000) -> np.ndarray:
-    if length <= maximum:
-        return np.arange(length)
-    return np.linspace(0, length - 1, maximum, dtype=int)
 
 
 def _welch_power(values: np.ndarray, sampling_rate_hz: float) -> tuple[np.ndarray, np.ndarray]:
@@ -68,7 +63,7 @@ def run_experiment(recipe: ExperimentRecipe) -> ExperimentResult:
     raw_power = raw_power_by_channel.mean(axis=0)
     filtered_power = filtered_power_by_channel.mean(axis=0)
 
-    view = _downsample_indices(simulation.time_s.size)
+    view = view_indices(simulation.time_s.size)
     traces: dict[str, list[float]] = {}
     for channel_index, channel_name in enumerate(simulation.channel_names):
         traces[f"Raw · {channel_name}"] = np.round(
@@ -94,14 +89,14 @@ def run_experiment(recipe: ExperimentRecipe) -> ExperimentResult:
         ),
         spectrum=SpectrumData(
             frequency_hz=np.round(raw_frequency, 4).tolist(),
-            raw_power=np.round(raw_power, 8).tolist(),
-            filtered_power=np.round(filtered_power, 8).tolist(),
+            raw_power=round_significant(raw_power).tolist(),
+            filtered_power=round_significant(filtered_power).tolist(),
             raw_power_by_channel={
-                channel_name: np.round(raw_power_by_channel[channel_index], 8).tolist()
+                channel_name: round_significant(raw_power_by_channel[channel_index]).tolist()
                 for channel_index, channel_name in enumerate(simulation.channel_names)
             },
             filtered_power_by_channel={
-                channel_name: np.round(filtered_power_by_channel[channel_index], 8).tolist()
+                channel_name: round_significant(filtered_power_by_channel[channel_index]).tolist()
                 for channel_index, channel_name in enumerate(simulation.channel_names)
             },
             unit="µV²/Hz",

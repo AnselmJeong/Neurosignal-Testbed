@@ -70,7 +70,11 @@ export function LineChart({
   const domain = useMemo(() => {
     const xs = xDomain ?? finiteExtent(x)
     const allY = series.flatMap((item) => item.values).map((value) => (logY ? Math.log10(Math.max(value, 1e-12)) : value))
-    const ys = yDomain ?? finiteExtent(allY)
+    const extent = yDomain ?? finiteExtent(allY)
+    // Decade ticks only make sense on whole exponents, so a log axis spans whole decades.
+    const ys: [number, number] = logY && yDomain === undefined
+      ? [Math.floor(extent[0]), Math.max(Math.floor(extent[0]) + 1, Math.ceil(extent[1]))]
+      : extent
     return { xs, ys }
   }, [x, xDomain, series, logY, yDomain])
   const innerWidth = WIDTH - PAD.left - PAD.right
@@ -78,7 +82,13 @@ export function LineChart({
   const sx = (value: number) => PAD.left + ((value - domain.xs[0]) / (domain.xs[1] - domain.xs[0])) * innerWidth
   const sy = (value: number) => PAD.top + innerHeight - ((value - domain.ys[0]) / (domain.ys[1] - domain.ys[0])) * innerHeight
   const xTicks = Array.from({ length: 6 }, (_, i) => domain.xs[0] + ((domain.xs[1] - domain.xs[0]) * i) / 5)
-  const yTicks = Array.from({ length: 5 }, (_, i) => domain.ys[0] + ((domain.ys[1] - domain.ys[0]) * i) / 4)
+  const decadeStep = Math.max(1, Math.ceil((domain.ys[1] - domain.ys[0]) / 5))
+  const yTicks = logY
+    ? Array.from(
+      { length: Math.floor((domain.ys[1] - Math.ceil(domain.ys[0])) / decadeStep) + 1 },
+      (_, i) => Math.ceil(domain.ys[0]) + i * decadeStep,
+    )
+    : Array.from({ length: 5 }, (_, i) => domain.ys[0] + ((domain.ys[1] - domain.ys[0]) * i) / 4)
 
   return (
     <div className="chart-wrap">
@@ -97,7 +107,9 @@ export function LineChart({
           <g key={`y-${tick}`}>
             <line x1={PAD.left} x2={WIDTH - PAD.right} y1={sy(tick)} y2={sy(tick)} className="grid-line" />
             <text x={PAD.left - 12} y={sy(tick) + 4} textAnchor="end" className="axis-tick">
-              {logY ? `10${tick.toFixed(0)}` : Math.abs(tick) >= 100 ? tick.toFixed(0) : tick.toFixed(1)}
+              {logY
+                ? <>10<tspan baselineShift="super" fontSize="0.75em">{tick.toFixed(0).replace('-', '−')}</tspan></>
+                : Math.abs(tick) >= 100 ? tick.toFixed(0) : tick.toFixed(1)}
             </text>
           </g>
         ))}
