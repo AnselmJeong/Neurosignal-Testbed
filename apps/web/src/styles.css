@@ -150,6 +150,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .channel-switcher button.active { border-color: var(--accent); background: #e8f1ef; color: var(--accent-dark); }
 .channel-detail { width: 100%; min-height: 0; align-self: start; display: grid; gap: 16px; position: relative; z-index: 1; }
 .channel-plot { min-width: 0; }
+/* The plot shares its section with a heading, so the viewer needs its own height rather than 100% of the section. */
+.channel-plot .eeg-tracer-browser { height: 420px; }
 .channel-plot + .channel-plot { padding-top: 16px; border-top: 1px solid var(--line-strong); }
 .plot-heading { min-height: 38px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .plot-heading > span { display: flex; align-items: center; gap: 10px; }
