@@ -4,6 +4,7 @@ import {
   Brain,
   BrainCircuit,
   Check,
+  Clock3,
   Compass,
   CircleHelp,
   FlaskConical,
@@ -15,7 +16,7 @@ import {
   Workflow,
 } from 'lucide-react'
 
-export type LabId = 'start' | 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
+export type LabId = 'start' | 'filter' | 'ica' | 'phase' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
 export type LabKey = Exclude<LabId, 'start'>
 
 export interface LabStep {
@@ -32,6 +33,10 @@ export const LABS: Record<LabKey, { number: string; label: string; english: stri
   ica: {
     number: '02', label: 'ICA', english: 'ICA', title: '어느 성분이 눈 깜박임인가?',
     objective: '성분을 살펴보고, 신경 신호를 잃지 않으면서 심어 둔 깜박임을 제거합니다.', minutes: '12분', icon: Brain,
+  },
+  phase: {
+    number: '준비', label: '위상', english: 'Phase primer', title: '화살표 하나로 읽는 위상',
+    objective: '시계바늘, 화살표, 평균, 비교 대상. Lab 03부터 나오는 지표를 읽는 네 가지 생각을 직접 움직여 봅니다.', minutes: '5분', icon: Clock3,
   },
   connectivity: {
     number: '03', label: '연결성', english: 'Connectivity', title: '원천의 관계에서 센서의 연결선까지',
