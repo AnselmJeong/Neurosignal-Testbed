@@ -33,6 +33,7 @@ import { LabNavigator, type LabId } from './LabNavigator'
 import { ScalpTopography } from './ScalpTopography'
 import { LookHere, PredictionChoices, PredictionFeedback, TryThisList } from './LessonPanels'
 import { RemovedSignalStrip } from './RemovedSignalStrip'
+import { MathSteps } from './MathSteps'
 import { GRADE_TEXT, ICA_BASELINE_PREDICTION, TRUTH_LABEL_KO, ICA_EXPERIMENTS, ICA_JUDGMENT_CHECKS, gradeComponent, isMixedComponent, judgmentAdvice, summarizeIcaFit, truthName, type CheckVerdict } from '../lessons/icaLesson'
 import { useGradedLesson } from '../lessons/useGradedLesson'
 
@@ -596,6 +597,10 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
           {fit && !isComparison && <button className="primary-button apply-button" disabled={!excluded.length || isBusy} onClick={handleApply}>
             <WandSparkles size={16} /> 제외 {excluded.length || 0}개 적용(Apply)
           </button>}
+          <MathSteps lab="ica" actions={{
+            rotate: { label: '성분 시계열 보기', disabled: !fit || isBusy, onClick: () => setView('Component trace') },
+            remove: { label: '처리 전 / 후 보기', disabled: !applied || isBusy, onClick: () => setView('Before / after') },
+          }} />
           <div className="nonclinical"><AlertTriangle size={15} /><span>ICLabel은 참고용입니다. 교육·연구용입니다.</span></div>
         </aside>
       </main>

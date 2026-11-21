@@ -1,4 +1,4 @@
-import { BookOpen, FolderOpen, GitCompareArrows, LayoutList, Network, Play, TriangleAlert, Waves } from 'lucide-react'
+import { BookOpen, FolderOpen, GitCompareArrows, LayoutList, Network, Play, Scale, TriangleAlert, Waves } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { LabNavigator, type LabId } from '../../components/LabNavigator'
@@ -20,6 +20,8 @@ import {
   type FlowDraft,
 } from './model'
 import { SensorSourceComparison } from './SensorSourceComparison'
+import { FLOW_CRITERIA, FLOW_PRESETS, flowScoreRows } from './scoreboard'
+import { MethodScoreboard } from '../../components/MethodScoreboard'
 import type { ConceptCatalog, FlowResult, FlowRunStatus, FlowRunSummary } from './types'
 import './flow.css'
 
@@ -30,11 +32,12 @@ const STEPS = [
   { label: '검증·실행', description: '서버가 설정·비용을 검사하고 실제 단계를 보여줍니다.', icon: Play },
   { label: '방법 카드', description: 'GC·TE·DCM식 모델·activity flow·PID를 한 장씩 읽습니다.', icon: LayoutList },
   { label: '센서 vs 소스', description: 'G=0에서 센서에 나타나는 허위 방향을 확인합니다.', icon: GitCompareArrows },
+  { label: '점수판', description: '무엇을 중시하느냐에 따라 방법의 순위가 바뀌는 것을 봅니다.', icon: Scale },
 ]
 
 export const FLOW_STORAGE_KEY = 'neurosignal-flow-last'
 
-type Tab = 'concepts' | 'methods' | 'compare'
+type Tab = 'concepts' | 'methods' | 'compare' | 'score'
 interface StoredIds { displayed: string | null; active: string | null }
 interface Notice { tone: 'error' | 'info'; text: string }
 
@@ -236,7 +239,7 @@ export function FlowWorkbench({ activeLab, onLabChange, pollIntervalMs = 1500 }:
   }
 
   const fresh = validation?.recipeKey === recipeKey && validation.report?.ok === true
-  const step = displayed && tab === 'compare' ? 5 : displayed && tab === 'methods' ? 4 : active || fresh ? 3 : tab === 'concepts' ? 0 : 2
+  const step = displayed && tab === 'score' ? 6 : displayed && tab === 'compare' ? 5 : displayed && tab === 'methods' ? 4 : active || fresh ? 3 : tab === 'concepts' ? 0 : 2
   const spaces = displayed ? spacesOf(displayed) : []
   const dataset = displayed ? findDataset(displayed, space, condition) : null
 
@@ -265,7 +268,7 @@ export function FlowWorkbench({ activeLab, onLabChange, pollIntervalMs = 1500 }:
             <h2>{tab === 'concepts' ? 'SC · FC · 유효 연결 · 정보 흐름' : displayed ? `${displayed.run_id} · ${displayed.profile}` : '아직 결과 없음'}</h2>
           </div>
           <div className="view-tabs" role="tablist" aria-label="Information Flow 보기">
-            {([['concepts', '개념'], ['methods', '방법 카드'], ['compare', '센서 vs 소스']] as [Tab, string][]).map(([id, label]) => (
+            {([['concepts', '개념'], ['methods', '방법 카드'], ['compare', '센서 vs 소스'], ['score', '점수판']] as [Tab, string][]).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>
             ))}
           </div>
@@ -303,6 +306,24 @@ export function FlowWorkbench({ activeLab, onLabChange, pollIntervalMs = 1500 }:
             </>
           )}
           {tab === 'compare' && displayed && <SensorSourceComparison key={displayed.run_id} result={displayed} catalog={catalog} />}
+          {tab === 'score' && displayed && (displayed.evaluation
+            ? <MethodScoreboard
+                key={displayed.run_id}
+                title="방향성 방법 점수판(Scoreboard)"
+                caption="같은 정답(소스 공간 간선 7개)에 대한 다섯 방법의 성적입니다. 무엇을 중시할지 고르면 순위가 바뀝니다."
+                rows={flowScoreRows(displayed)}
+                criteria={FLOW_CRITERIA}
+                presets={FLOW_PRESETS}
+                scatter={{ x: 'false_positive', y: 'missed', xLabel: '거짓 양성 비율', yLabel: '놓친 간선 비율', goodCorner: '왼쪽 아래가 좋음(놓치지도, 잘못 잡지도 않음)', xMax: 1, yMax: 1 }}
+                howScored={[
+                  '정답은 시뮬레이션에 쓴 간선입니다. 분석 단계는 정답을 보지 않고, 채점 단계에서만 정답과 비교합니다(정답 격리).',
+                  '간선 찾기·방향 적중·놓친 간선·거짓 양성은 결합을 켠 소스 공간 자료로 채점합니다. 유의성은 검정한 모든 순서쌍에 대한 Bonferroni 보정입니다.',
+                  '볼륨 전도 민감도는 결합을 끈(G=0) 센서 자료에서 유의하다고 나온 쌍의 비율입니다. 센서 채널은 원천이 아니므로 여기서는 정답 대신 "결합이 없음"만 압니다.',
+                  '각 열을 0(가장 나쁨)–1(가장 좋음)로 바꾼 뒤 중요도로 가중 평균합니다. 계산하지 못한 칸(—)은 0으로 치지 않고 평균에서 뺍니다.',
+                  '모든 방법이 같은 길이의 자료를 씁니다. 필요한 자료 길이는 왼쪽 설정의 신호 길이를 바꿔 직접 비교하세요.',
+                ]}
+              />
+            : <p className="flw-note">이 결과에는 정답 채점(evaluation)이 없어 점수판을 만들 수 없습니다.</p>)}
         </div>
       </section>
 

@@ -22,6 +22,7 @@ import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useState } from '
 
 import { AboutExperience } from './components/AboutDialog'
 import { StartScreen } from './components/StartScreen'
+import { MathSteps } from './components/MathSteps'
 import { PhasePrimer } from './components/PhasePrimer'
 import { RemovedSignalStrip } from './components/RemovedSignalStrip'
 import { LineChart } from './components/Charts'
@@ -617,6 +618,8 @@ function App() {
               </div>
             )}
           </section>
+
+          <MathSteps lab="filter" />
 
           <div className="nonclinical"><AlertTriangle size={15} /><span>교육·연구용입니다.<br />임상 진단에 쓰지 마세요.</span></div>
         </aside>
