@@ -790,3 +790,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .method-card dt { color: #6b726c; font-size: 10.5px; font-weight: 650; }
 .method-card dd { margin: 0; font-size: 11.5px; line-height: 1.45; color: #2f3531; }
 .method-card .breaks dt { color: #9c4a29; }
+
+/* Graded lessons in Labs 02–04 */
+.conn-graded { margin: 4px 0 18px; display: grid; gap: 8px; }
+.conn-graded .look-here { margin: 0; }
+.source-inspector > .result-sentence { margin: 0 0 12px; }
+.ica-controls .try-this, .source-controls .try-this, .conn-lesson-controls .try-this { padding-top: 6px; }

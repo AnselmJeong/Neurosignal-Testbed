@@ -6,7 +6,9 @@ import { defaultConnectivityRecipe, type ConnectivityMetric, type ConnectivityRe
 import { LabNavigator, type LabId } from './LabNavigator'
 import { StackedEegBrowser } from './StackedEegBrowser'
 import { CONNECTIVITY_METHOD_CARDS } from '../lessons/labGuide'
-import { MethodCard } from './LessonPanels'
+import { LookHere, MethodCard, PredictionChoices, PredictionFeedback, TryThisList } from './LessonPanels'
+import { CONNECTIVITY_BASELINE_PREDICTION, CONNECTIVITY_EXPERIMENTS, summarizeConnectivityResult } from '../lessons/connectivityLesson'
+import { useGradedLesson } from '../lessons/useGradedLesson'
 import { ComparisonReadout, ConnectivityDiagnostics, EstimatePanel, GeneratingNetwork, METRIC_GUIDE, RecipeSummary } from './ConnectivityLessonViews'
 import './connectivity-lesson.css'
 
@@ -31,6 +33,7 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
   const [space, setSpace] = useState<ConnectivitySpace>('sensor')
   const [view, setView] = useState<'Matrix' | 'Network'>('Matrix')
   const [traceSnapshot, setTraceSnapshot] = useState<'current' | 'a'>('current')
+  const lesson = useGradedLesson({ storageKey: 'neurosignal-lab03-completed-experiments', experiments: CONNECTIVITY_EXPERIMENTS, baseline: CONNECTIVITY_BASELINE_PREDICTION, defaultRecipe: defaultConnectivityRecipe as ConnectivityRecipe })
   const requestId = useRef(0)
   const pending = useRef(false)
   useEffect(() => () => { requestId.current += 1 }, [])
@@ -95,8 +98,11 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
         setSimulation(data)
         setTraceSnapshot('current')
       } else {
+        lesson.lockIn(snapshot)
         const data = await runConnectivity(snapshot)
         if (requestId.current !== id) return
+        // The estimate itself shows the truth (source graph), so grading happens as it lands.
+        lesson.reveal()
         setLatest(data)
         setBaseline(current => current ?? data)
         setSimulation(data.simulation)
@@ -115,11 +121,21 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
     setTraceSnapshot('current')
   }
 
+  function selectExperiment(id: string | null) {
+    // Cards start from the lab default, so the change is the same whatever A is.
+    setRecipe(lesson.select(id))
+    setError(null)
+    setTraceSnapshot('current')
+  }
+
   return <>
     <main className="workspace conn-lesson-workspace">
       <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={STEPS} step={step} />
       <aside className="control-panel conn-lesson-controls">
         <div className="panel-heading"><span className="eyebrow">연결성 실험</span><h1>원천의 관계에서<br />센서의 연결선까지</h1><p>관계를 만들고 그 EEG를 본 뒤, 연결성 지표가 무엇을 되찾는지 묻습니다.</p></div>
+        <TryThisList items={CONNECTIVITY_EXPERIMENTS} activeId={lesson.activeId} completed={lesson.completed} disabled={busy !== null} onSelect={selectExperiment} baselineNote="공유 0.78 · 장 퍼짐 0.72 · 평균 기준 · 24 epoch" />
+        {lesson.activeId && !baseline && <p className="run-prerequisite">카드는 B 조건입니다. 비교하려면 먼저 "기본 설정으로 시작"에서 A를 추정해 두면 좋습니다.</p>}
+        <PredictionChoices prediction={lesson.prediction} answer={lesson.answer} onAnswer={lesson.setAnswer} reason={lesson.reason} onReason={lesson.setReason} locked={busy !== null} reasonPlaceholder="예: 센서 연결선은 혼합에서도 생긴다" />
         <fieldset disabled={busy !== null}>
           <legend className="sr-only">시뮬레이션과 추정 설정</legend>
           <section className="control-section">
@@ -154,7 +170,8 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
         <div className="conn-actions">
           {busy === 'remeasure' && <p role="status">{METRIC_GUIDE[recipe.metric].label}로 {comparison ? 'A와 B' : 'A'}를 다시 추정하는 중… 계산이 모두 끝날 때까지 이전 결과가 보입니다.</p>}
           <button className="primary-button" disabled={busy !== null} onClick={() => void execute('generate')}><Waves size={15} />{busy === 'generate' ? '생성 중…' : <span className="conn-generate-label"><span>1 · {baseline ? '비교용' : '기준'}</span>{' '}<span>EEG 생성(Generate)</span></span>}</button>
-          <button className="quiet-button" disabled={!ready || busy !== null} onClick={() => void execute('estimate')}><Play size={14} />{busy === 'estimate' ? '추정 중…' : baseline ? '2 · B 추정(Estimate)' : '2 · 연결성 추정(Estimate)'}</button>
+          {ready && !lesson.ready && <p>예측을 고르거나 "예측 없이 진행"을 누르면 추정할 수 있습니다.</p>}
+          <button className="quiet-button" disabled={!ready || busy !== null || !lesson.ready} onClick={() => void execute('estimate')}><Play size={14} />{busy === 'estimate' ? '추정 중…' : baseline ? '2 · B 추정(Estimate)' : '2 · 연결성 추정(Estimate)'}</button>
           {!ready && <p>추정하기 전에 현재 설정으로 EEG를 생성하세요.</p>}
         </div>
       </aside>
@@ -186,13 +203,13 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
         </section>
         <section id="conn-estimates" className="conn-chapter">
           <div className="conn-chapter-heading"><span>03</span><div><h2>추정한 뒤 가정 하나를 바꾸기</h2><p>첫 추정이 A가 됩니다. 설정 하나를 바꾸고 그 EEG를 생성한 뒤 B를 추정하세요.</p></div></div>
-          {baseline && <div className="conn-experiments"><h3>A에서 하나만 바꿔 보기(Try this)</h3><div>
-            <button disabled={busy !== null} onClick={() => setExperiment({ coupling_strength: baseline.recipe.coupling_strength === 0 ? 0.78 : 0 })}>{baseline.recipe.coupling_strength === 0 ? '공유 알파 넣기' : '공유 알파 빼기'}</button>
-            <button disabled={busy !== null} onClick={() => setExperiment({ volume_conduction: baseline.recipe.volume_conduction > 0.5 ? 0.1 : 0.9 })}>장 퍼짐 바꾸기</button>
-            <button disabled={busy !== null} onClick={() => setExperiment({ phase_lag_deg: baseline.recipe.phase_lag_deg === 0 ? 60 : 0 })}>위상차 바꾸기</button>
-            <button disabled={busy !== null} onClick={() => setExperiment({ reference: baseline.recipe.reference === 'average' ? 'none' : 'average' })}>기준전극 바꾸기</button>
-            <button disabled={busy !== null} onClick={() => setExperiment({})}>A 설정으로 되돌리기</button>
-          </div><p>각 버튼은 A에서 출발해 이름 붙은 설정 하나만 바꿉니다. 그다음 B를 생성하고 추정하세요.</p></div>}
+          {baseline && <div className="conn-experiments"><p>왼쪽의 실험 과제 카드가 기본 설정에서 설정 하나만 바꿉니다. 카드를 고르고 예측한 뒤 B를 생성하고 추정하세요.</p><div><button disabled={busy !== null} onClick={() => setExperiment({})}>A 설정으로 되돌리기</button></div></div>}
+          {lesson.revealed && latest && <div className="conn-graded">
+            <PredictionFeedback prediction={lesson.revealed.prediction} answer={lesson.revealed.answer} reason={lesson.revealed.reason} graded={lesson.revealed.graded} />
+            {lesson.revealed.experiment && <p className="experiment-learn"><b>배우는 것</b> {lesson.revealed.experiment.learn}</p>}
+            <p className="result-sentence"><b>결과 한 문장</b> {summarizeConnectivityResult(latest, baseline)}</p>
+            {lesson.revealed.experiment && <LookHere>{lesson.revealed.experiment.lookAt}</LookHere>}
+          </div>}
           {baseline && latest ? <>
             <div className="conn-result-toolbar"><div className="conn-switch" role="group" aria-label="추정 공간"><button aria-pressed={space === 'sensor'} onClick={() => setSpace('sensor')}>센서 추정</button><button aria-pressed={space === 'latent'} onClick={() => setSpace('latent')}>원천 추정</button></div><div className="conn-switch" role="group" aria-label="추정 시각화"><button aria-pressed={view === 'Matrix'} onClick={() => setView('Matrix')}>행렬(Matrix)</button><button aria-pressed={view === 'Network'} onClick={() => setView('Network')}>{space === 'sensor' ? '두피 지도' : '원천 그래프'}</button></div></div>
             <p className="conn-reading-note">{space === 'sensor' ? '칸이나 선 하나는 센서 한 쌍을 잰 값입니다. 원천 사이의 연결과 일대일로 대응하지 않습니다.' : '이 추정은 EEG에서 재구성한 원천이 아니라 원래 시뮬레이션 원천을 씁니다. 네트워크 보기에서 초록 = 설정한 공유 쌍, 주황 점선 = 그 밖에 검출된 쌍입니다.'} {view === 'Matrix' ? '모든 쌍의 값을 보여 주며, 테두리가 있는 칸은 귀무 임계값을 넘은 것입니다. 대각선은 채널 자신과의 비교라서 뺐습니다.' : '귀무 임계값을 넘은 연결만 그립니다. 선이 없어도 값이 0은 아닐 수 있습니다. 선 굵기는 강한 값을 강조하도록 비선형으로 커지며, 굵기 범례에 대응이 있습니다. 센서 색은 파랑(0)에서 노랑(0.5)을 거쳐 빨강(1)까지로 행렬과 같습니다.'}</p>

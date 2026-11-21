@@ -3,6 +3,9 @@ import { AlertTriangle, BrainCircuit, CircleHelp, Crosshair, Eye, Play, ScanLine
 import { runSourceModel, simulateSourceModel } from '../lib/api'
 import { defaultSourceModelRecipe, type SourceModelRecipe, type SourceModelResult, type SourceModelSimulation } from '../types'
 import { ControlHint } from './ControlHint'
+import { LookHere, PredictionChoices, PredictionFeedback, TryThisList } from './LessonPanels'
+import { SOURCE_BASELINE_PREDICTION, SOURCE_EXPERIMENTS, summarizeSourceResult } from '../lessons/sourceLesson'
+import { useGradedLesson } from '../lessons/useGradedLesson'
 import { LabNavigator, type LabId } from './LabNavigator'
 import { StackedEegBrowser } from './StackedEegBrowser'
 import { CandidateForwardMap, CandidateTraces, coordinates, SourcePowerView, TruthDiagnostics } from './SourcePowerViews'
@@ -36,7 +39,8 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
   const [truthVisible, setTruthVisible] = useState(false)
   const [busy, setBusy] = useState<'generate' | 'estimate' | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [prediction, setPrediction] = useState('가깝거나 동기화된 원천은 하나로 흐려질 수 있다. 일부 봉우리는 심은 위치에서 벗어날 것이다.')
+  const lesson = useGradedLesson({ storageKey: 'neurosignal-lab04-completed-experiments', experiments: SOURCE_EXPERIMENTS, baseline: SOURCE_BASELINE_PREDICTION, defaultRecipe: defaultSourceModelRecipe as SourceModelRecipe })
+  const showLookHere = Boolean(result && lesson.active && lesson.lockedIn?.experimentId === lesson.activeId && lesson.onCard(lesson.lockedIn.recipe))
   const band = result?.power_maps.find((b) => b.id === bandId) ?? result?.power_maps[0]
   const count = simulation?.candidate_positions_mm.length ?? (recipe.grid_spacing_mm === 20 ? 250 : 26)
   const step = truthVisible ? 4 : result ? 3 : simulation ? 2 : busy === 'generate' ? 1 : 0
@@ -61,6 +65,7 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
   async function estimate() {
     if (!simulation) return
     setBusy('estimate'); clearEstimate()
+    lesson.lockIn(recipe)
     try {
       // The same seeded input is reproduced; inverse settings never change sensor EEG.
       const data = await runSourceModel({ ...simulation.recipe, inverse: recipe.inverse })
@@ -69,6 +74,14 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
       setSelected(alpha.peaks[0]?.vertex_index ?? alpha.power_nam2.indexOf(Math.max(...alpha.power_nam2)))
     } catch (e) { setError(e instanceof Error ? e.message : '원천 추정에 실패했습니다.') }
     finally { setBusy(null) }
+  }
+  function selectExperiment(id: string | null) {
+    setRecipe(lesson.select(id))
+    setSimulation(null); clearEstimate()
+  }
+  function reveal() {
+    lesson.reveal()
+    setTruthVisible(true); setView('Power map')
   }
   function chooseBand(id: string) {
     setBandId(id)
@@ -81,7 +94,8 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
       <LabNavigator activeLab={activeLab} onLabChange={onLabChange} steps={STEPS} step={step} />
       <aside className="control-panel source-controls">
         <div className="panel-heading"><span className="eyebrow">원천 국소화 · 안내 실습</span><h1>EEG로 원천까지<br />거슬러 갈 수 있는가?</h1><p>먼저 추정합니다. 그다음 무엇이 옮겨 갔고, 합쳐졌고, 사라졌는지 잽니다.</p></div>
-        <section className="prediction-block compact-prediction"><label htmlFor="source-prediction"><CircleHelp size={15} /> 내 예측</label><textarea id="source-prediction" value={prediction} onChange={(e) => setPrediction(e.target.value)} rows={3} /></section>
+        <TryThisList items={SOURCE_EXPERIMENTS} activeId={lesson.activeId} completed={lesson.completed} disabled={!!busy} onSelect={selectExperiment} baselineNote="위상 지연 55° · 잡음 0.08 µV · λ² 0.111" />
+        <PredictionChoices prediction={lesson.prediction} answer={lesson.answer} onAnswer={lesson.setAnswer} reason={lesson.reason} onReason={lesson.setReason} locked={!!busy} reasonPlaceholder="예: 잡음이 커지면 가짜 극댓값이 생긴다" />
         <section className="control-section"><div className="section-title"><span>신호 생성하기</span></div>
           <SourceRange label="알파 위상 지연(Alpha phase lag)" ariaLabel="Alpha phase lag" help="앞쪽 두 10 Hz 전류 사이의 시간 차이입니다. 0°이면 동기화되어 공간적 기여를 떼어 내기 어려워집니다." value={recipe.phase_lag_deg} min={0} max={180} step={5} unit="°" disabled={!!busy} onChange={(v) => updateSimulation('phase_lag_deg', v)} />
           <SourceRange label="원천 진폭(Source amplitude)" ariaLabel="Source amplitude" help="심어 둔 기준 전류(nAm)입니다. 나머지 원천은 이 값의 88%, 58%, 42%로 유지됩니다." value={recipe.source_amplitude_nam} min={5} max={50} step={1} unit="nAm" disabled={!!busy} onChange={(v) => updateSimulation('source_amplitude_nam', v)} />
@@ -94,7 +108,8 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
           <label className="source-select">정규화(Regularization) λ²<ControlHint>Minimum norm은 전체 전류가 작은 해를 고릅니다. λ²를 키우면 약하거나 잡음 많은 성분이 눌리고 퍼짐이 바뀝니다. 작은 값이 더 나은 위치를 보장하지는 않습니다.</ControlHint><select aria-label="Inverse regularization" value={recipe.inverse.lambda2} disabled={!!busy} onChange={(e) => updateInverse('lambda2', Number(e.target.value))}><option value={0.01}>0.01 · 약함</option><option value={1 / 9}>0.111 · 기본</option><option value={1}>1 · 강함</option><option value={10}>10 · 매우 강함</option></select></label>
           <SourceRange label="봉우리 임계값(Peak threshold)" ariaLabel="Peak threshold" help="대역마다 가장 강한 지점 대비 최소 파워 비율입니다. 기술적 기준선일 뿐 유의성 검정이나 확률이 아닙니다. 봉우리 수는 정해져 있지 않습니다." value={recipe.inverse.peak_threshold * 100} min={5} max={100} step={5} unit="%" disabled={!!busy} onChange={(v) => updateInverse('peak_threshold', v / 100)} />
           <SourceRange label="봉우리 간격(Peak separation)" ariaLabel="Peak separation" help="강한 극댓값부터 남기고 이 거리보다 가까운 봉우리는 지웁니다. 간격을 크게 하면 진짜 원천 둘이 봉우리 하나로 합쳐질 수 있습니다." value={recipe.inverse.peak_separation_mm} min={20} max={100} step={10} unit="mm" disabled={!!busy} onChange={(v) => updateInverse('peak_separation_mm', v)} />
-          <button className="source-estimate-button" disabled={!simulation || !!busy} onClick={estimate}><Crosshair size={15} /> 2 · 원천 추정(Estimate)</button>
+          {!lesson.ready && <p className="run-prerequisite">위에서 예측을 고르거나 "예측 없이 진행"을 누르면 추정할 수 있습니다.</p>}
+          <button className="source-estimate-button" disabled={!simulation || !!busy || !lesson.ready} onClick={estimate}><Crosshair size={15} /> 2 · 원천 추정(Estimate)</button>
           <p className="source-reading-note">이 설정은 생성한 EEG를 그대로 씁니다. 바꾸면 이전 추정과 정답 공개가 지워집니다.</p>
         </section>
       </aside>
@@ -108,11 +123,12 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
             : error ? <div className="empty-stage error-stage" role="alert"><AlertTriangle /><h3>실행을 마치지 못했습니다</h3><p>{error}</p><button onClick={simulation ? estimate : generate}>다시 시도</button></div>
             : !simulation ? <SourceIntroduction count={count} recipe={recipe} />
             : <div className="source-result-view">
-              <div className="source-view-guide"><div><h3>{GUIDES[view][0]}</h3><p>{GUIDES[view][1]}</p></div>{!result && <button onClick={estimate}>이 EEG에서 추정하기</button>}</div>
+              <div className="source-view-guide"><div><h3>{GUIDES[view][0]}</h3><p>{GUIDES[view][1]}</p></div>{!result && <button disabled={!lesson.ready} onClick={estimate}>이 EEG에서 추정하기</button>}</div>
               {result && band && view !== 'Sensor EEG' && view !== 'Truth diagnostics' && <div className="source-analysis-toolbar">
                 <label className="source-select">주파수 대역<select aria-label="Source frequency band" value={band.id} onChange={(e) => chooseBand(e.target.value)}>{result.power_maps.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
                 <label className="source-select">후보 살펴보기(Inspect candidate)<select aria-label="Inspect source candidate" value={selected} onChange={(e) => setSelected(Number(e.target.value))}>{result.candidate_positions_mm.map((position, i) => <option key={i} value={i}>v{i} · {coordinates(position)} mm</option>)}</select></label>
               </div>}
+              {showLookHere && lesson.active && <LookHere>{lesson.active.lookAt}</LookHere>}
               <div className={'source-view-body ' + (view === 'Sensor EEG' ? 'sensor-view-body' : '')}>
                 {view === 'Sensor EEG' && <StackedEegBrowser x={simulation.sensor_trace.x} series={simulation.sensor_trace.series} ariaLabel="심은 네 원천을 순방향 투영한 센서 EEG" />}
                 {result && band && view === 'Power map' && <SourcePowerView result={result} band={band} selected={selected} onSelect={setSelected} truthVisible={truthVisible} />}
@@ -126,13 +142,16 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
       </section>
 
       <aside className="inspector-panel source-inspector"><section className="inspector-lead"><span className="eyebrow">해석(Interpretation)</span><h2>{truthVisible ? '추정은 무엇을 놓쳤나?' : '답이 하나로 정해지지 않는 역문제'}</h2><p>{!simulation ? '먼저 알려진 전류 네 개를 심고 두피에서 섞인 모습을 보세요.' : !result ? '역해는 채널 14개만으로 많은 전류를 추정해야 합니다. 정규화가 가능한 많은 해 중 하나를 고릅니다.' : !truthVisible ? '정답을 공개하기 전에 검출된 봉우리를 모두 살펴보세요. 알파 원천 둘이 극댓값 하나가 될 수 있고, 잡음이 봉우리를 더 만들 수 있습니다. 원천 네 개를 심었다고 네 개가 검출되는 것은 아닙니다.' : '거리와 함께 놓친 원천과 짝 없는 봉우리를 비교하세요. 짝지은 봉우리의 오차가 작아도 검출은 나쁠 수 있습니다.'}</p></section>
-        <section className="source-truth-summary"><h3>시뮬레이션 정답</h3>{!truthVisible ? <><p>추정을 살펴본 뒤에 위치와 평가가 나타납니다.</p><button className="reveal-button" disabled={!result || !!busy} onClick={() => { setTruthVisible(true); setView('Power map') }}><Eye size={16} /> 공개하고 평가하기(Reveal)</button></> : result && <>
+        {truthVisible && result && <p className="result-sentence"><b>결과 한 문장</b> {summarizeSourceResult(result)}</p>}
+        <section className="source-truth-summary"><h3>시뮬레이션 정답</h3>{!truthVisible ? <><p>추정을 살펴본 뒤에 위치와 평가가 나타납니다.</p><button className="reveal-button" disabled={!result || !!busy} onClick={reveal}><Eye size={16} /> 공개하고 평가하기(Reveal)</button></> : result && <>
+          {lesson.revealed && <PredictionFeedback prediction={lesson.revealed.prediction} answer={lesson.revealed.answer} reason={lesson.revealed.reason} graded={lesson.revealed.graded} />}
+          {lesson.revealed?.experiment && <p className="experiment-learn"><b>배우는 것</b> {lesson.revealed.experiment.learn}</p>}
           <dl><div><dt>짝지음 / 심은 수</dt><dd>{result.evaluation.matched_count} / {result.rois.length}</dd></div><div><dt>놓친 원천</dt><dd>{result.evaluation.missed_count}</dd></div><div><dt>짝 없는 봉우리</dt><dd>{result.evaluation.unmatched_peak_count}</dd></div></dl>
           <p>고정된 세타/알파/베타 대역에서 {result.evaluation.match_radius_mm} mm 안의 일대일 짝짓기입니다. 광대역은 세지 않습니다. 짝짓기 허용 거리는 채점 규칙이지 공간 정확도가 아닙니다.</p>
           {result.evaluation.outside_band_roi_ids.length > 0 && <p>분석 대역 밖이라 채점하지 않음: {result.evaluation.outside_band_roi_ids.join(', ')}.</p>}
           <ul>{result.rois.map((roi) => <li key={roi.id}><strong>{roi.label} · {roi.frequency_hz} Hz</strong><span>{coordinates(roi.position_mm)} mm</span></li>)}</ul>
         </>}</section>
-        <section className="source-learning-experiments"><h3>더 어려운 경우 해 보기(Try this)</h3><ol><li>위상 지연을 0°로 두세요. 알파 봉우리 두 개가 남는가?</li><li>센서 잡음을 올리세요. 어떤 봉우리가 옮겨 가거나 새로 생기는가?</li><li>봉우리 간격을 100 mm로 늘리세요. 원천을 몇 개 놓치는가?</li><li>같은 EEG에서 정규화 설정을 비교하세요.</li></ol><p>정답을 공개하기 전에 설정을 정하세요. 알려진 점수를 올리려고 설정을 고치는 것은 탐색적 조정이지 독립적 검증이 아닙니다.</p></section>
+        <section className="source-learning-experiments"><p>정답을 공개하기 전에 설정을 정하세요. 알려진 점수를 올리려고 설정을 고치는 것은 탐색적 조정이지 독립적 검증이 아닙니다.</p></section>
         <div className="nonclinical"><AlertTriangle size={15} /><span>구형·고정 방향의 교육용 모형입니다. 시뮬레이션과 역해가 같은 기하를 쓰므로 실제 머리 모형 불일치는 시험하지 않습니다. 격자점을 늘려도 센서 정보는 늘지 않습니다.</span></div>
         {result && <section className="source-methods"><span className="eyebrow">기록된 방법</span><p>{result.inverse_method}</p><p>Hann 창 periodogram · 대역 적분 파워(nAm²) · 국소 극댓값 · 상대 임계값 · 거리 억제</p><small>Seed {result.provenance.seed} · recipe {result.provenance.recipe_hash}</small></section>}
       </aside>

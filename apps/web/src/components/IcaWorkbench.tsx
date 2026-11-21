@@ -30,6 +30,10 @@ import { ControlHint } from './ControlHint'
 import { StackedEegBrowser, StackedEegComparison } from './StackedEegBrowser'
 import { LabNavigator, type LabId } from './LabNavigator'
 import { ScalpTopography } from './ScalpTopography'
+import { LookHere, PredictionChoices, PredictionFeedback, TryThisList } from './LessonPanels'
+import { RemovedSignalStrip } from './RemovedSignalStrip'
+import { ICA_BASELINE_PREDICTION, ICA_EXPERIMENTS, summarizeIcaFit } from '../lessons/icaLesson'
+import { useGradedLesson } from '../lessons/useGradedLesson'
 
 const ICA_STEPS = [
   { label: '생성(Generate)', description: '깜박임을 심은 센서 EEG를 만듭니다.', icon: FlaskConical },
@@ -60,6 +64,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
   const [view, setView] = useState<IcaView>('Component trace')
   const [pipeline, setPipeline] = useState<PipelineState>({ status: 'idle' })
   const [step, setStep] = useState(0)
+  const lesson = useGradedLesson({ storageKey: 'neurosignal-lab02-completed-experiments', experiments: ICA_EXPERIMENTS, baseline: ICA_BASELINE_PREDICTION, defaultRecipe: defaultIcaRecipe })
 
   const hasPlantedBlink = recipe.blink_amplitude_uv > 0
   const lessonSteps = useMemo(() => hasPlantedBlink ? ICA_STEPS : ICA_STEPS.map((item, index) => {
@@ -96,6 +101,18 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
     setView('Component trace')
   }
 
+  function selectExperiment(id: string | null) {
+    setRecipe(lesson.select(id))
+    setSimulation(null)
+    clearDecomposition()
+    setStep(0)
+  }
+
+  function revealTruth() {
+    lesson.reveal()
+    setTruthVisible(true)
+  }
+
   function updateInputRecipe<K extends 'blink_amplitude_uv' | 'sensor_noise_uv' | 'reference'>(key: K, value: IcaRecipe[K]) {
     setRecipe((current) => ({ ...current, [key]: value }))
     setSimulation(null)
@@ -124,6 +141,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
 
   async function handleFit() {
     if (!simulation) return
+    lesson.lockIn(recipe)
     setPipeline({ status: 'fitting', stage: `임시 ${recipe.fit_highpass_hz}–${recipe.fit_lowpass_hz} Hz 적합용 사본을 필터링하는 중`, progress: 20 })
     setApplied(null)
     setExcluded([])
@@ -220,6 +238,9 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             <p>정답을 아는 EEG를 만들어 살펴본 뒤, ICA를 적합하고 제외할 성분을 고릅니다.</p>
           </div>
 
+          <TryThisList items={ICA_EXPERIMENTS} activeId={lesson.activeId} completed={lesson.completed} disabled={isBusy} onSelect={selectExperiment} baselineNote="깜박임 90 µV · 잡음 0.25 µV · 평균 기준 · 성분 4개" />
+          <PredictionChoices prediction={lesson.prediction} answer={lesson.answer} onAnswer={lesson.setAnswer} reason={lesson.reason} onReason={lesson.setReason} locked={isBusy} reasonPlaceholder="예: 원천보다 성분이 많으면 남는 성분이 생긴다" />
+
           <section className="rank-block">
             <div><ShieldCheck size={16} /><span>독립 차원 수(rank)</span></div>
             <strong>{availableRank}<small> ICA가 쓸 수 있음</small></strong>
@@ -262,7 +283,8 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             </div>
             <IcaRange label="성분 수(Components)" ariaLabel="Components" help={`ICA가 추정할 성분 수입니다. 현재 EEG의 독립 차원은 ${availableRank}개이므로 그보다 많이 추정할 수 없습니다.`} value={recipe.component_count} min={3} max={7} step={1} unit="개" onChange={(value) => updateFitRecipe('component_count', value)} />
             {!simulation && <p className="fit-prerequisite">ICA를 적합하기 전에 시뮬레이션 EEG를 생성해 살펴보세요.</p>}
-            <button className="primary-button fit-button" onClick={handleFit} disabled={!simulation || isBusy}>
+            {simulation && !lesson.ready && <p className="fit-prerequisite">위에서 예측을 고르거나 "예측 없이 진행"을 누르면 ICA를 적합할 수 있습니다.</p>}
+            <button className="primary-button fit-button" onClick={handleFit} disabled={!simulation || isBusy || !lesson.ready}>
               <Split size={16} /> {fit ? 'ICA 다시 적합' : '생성한 EEG에 ICA 적합(Fit ICA)'}
             </button>
           </section>
@@ -338,6 +360,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             )}
             {fit && pipeline.status === 'idle' && (
               <>
+                {!isComparison && lesson.revealed?.experiment && truthVisible && <LookHere>{lesson.revealed.experiment.lookAt}</LookHere>}
                 {!isComparison && <div className="component-strip" aria-label="ICA 성분">
                   {fit.components.map((item) => (
                     <button
@@ -378,12 +401,21 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
                     </div>
                   )}
                   {applied && view === 'Before / after' && comparisonIsComplete && (
-                    <StackedEegComparison
-                      x={applied.before_after_trace.x}
-                      series={applied.before_after_trace.series}
-                      channelNames={fit.compatibility.channel_names}
-                      ariaLabel="Eight-channel EEG before and after ICA repair"
-                    />
+                    <>
+                      <StackedEegComparison
+                        x={applied.before_after_trace.x}
+                        series={applied.before_after_trace.series}
+                        channelNames={fit.compatibility.channel_names}
+                        ariaLabel="Eight-channel EEG before and after ICA repair"
+                      />
+                      {(() => {
+                        // The removed layer for the front channel, where a blink is largest.
+                        const channel = fit.compatibility.channel_names[0]!
+                        const before = applied.before_after_trace.series[`Before · ${channel}`] ?? []
+                        const after = applied.before_after_trace.series[`After · ${channel}`] ?? []
+                        return <RemovedSignalStrip x={applied.before_after_trace.x} values={before.map((value, index) => value - (after[index] ?? 0))} channelName={channel} />
+                      })()}
+                    </>
                   )}
                   {applied && view === 'Before / after' && !comparisonIsComplete && (
                     <div className="stale-comparison" role="alert">
@@ -429,13 +461,16 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             <div className="truth-heading"><span><EyeOff size={16} /> 성분 정답(Truth)</span><span className="truth-state">{truthVisible ? '공개됨' : '숨김'}</span></div>
             {truthVisible && component ? (
               <div className="truth-content">
+                {lesson.revealed && <PredictionFeedback prediction={lesson.revealed.prediction} answer={lesson.revealed.answer} reason={lesson.revealed.reason} graded={lesson.revealed.graded} />}
+                {lesson.revealed?.experiment && <p className="experiment-learn"><b>배우는 것</b> {lesson.revealed.experiment.learn}</p>}
+                <p className="result-sentence"><b>결과 한 문장</b> {summarizeIcaFit(fit)}</p>
                 <div className="truth-match"><small>{hasTruthMatch ? '대응하는 원천' : '대응 결과'}</small><strong>{activeMatch}</strong></div>
                 <p>{hasTruthMatch ? '최적 일대일 배정 후 원천과의 상관 절댓값으로 대응시켰습니다. 시뮬레이션이라서 가능한 확인입니다.' : '이 성분에 대응하는 심어 둔 원천이 없습니다. 깜박임이 아니라 남은 센서 잡음이나 분해 잔여분입니다.'}</p>
               </div>
             ) : (
               <div className="truth-covered">
                 <div className="blur-lines"><i /><i /><i /></div>
-                <button className="reveal-button" disabled={!fit} onClick={() => setTruthVisible(true)}><Eye size={16} /> 원천 정체 공개(Reveal)</button>
+                <button className="reveal-button" disabled={!fit} onClick={revealTruth}><Eye size={16} /> 원천 정체 공개(Reveal)</button>
               </div>
             )}
           </section>}
