@@ -21,6 +21,7 @@ export interface StartQuestion {
 export const START_QUESTIONS: StartQuestion[] = [
   { question: '표본화율을 낮추면 무엇을 잃는가?', hint: '60 Hz가 40 Hz로 접히는 것을 직접 만들어 봅니다.', lab: 'filter' },
   { question: '눈 깜박임을 어떻게 빼는가?', hint: '성분을 하나씩 판정해 지우고, 무엇이 함께 사라졌는지 확인합니다.', lab: 'ica' },
+  { question: '위상, 코히어런스, PLV가 낯설다', hint: '시계바늘과 화살표로 연결성 지표의 공통 원리를 5분 안에 봅니다.', lab: 'phase' },
   { question: '두 전극이 함께 움직이면 연결된 것인가?', hint: '연결이 없는 원천에서도 센서 연결선이 생기는 것을 봅니다.', lab: 'connectivity' },
   { question: '두피 신호로 뇌의 위치를 알 수 있는가?', hint: '정답 위치를 아는 원천으로 역해의 오차를 잽니다.', lab: 'source' },
   { question: '내 기록을 열어 보고 싶다', hint: '원본을 건드리지 않고 점검한 뒤 QEEG 지도까지 갑니다.', lab: 'real', then: 'qeeg' },
@@ -48,6 +49,13 @@ export const LAB_LIMITS: Record<Exclude<LabId, 'start'>, LabLimits> = {
       '심어 둔 아티팩트는 눈 깜박임 하나입니다. 근전도, 심전도, 전극 튐이 섞인 실제 자료는 판정이 더 어렵습니다.',
       '정답 성분을 알기 때문에 "얼마나 잘 지웠나"를 잴 수 있습니다. 실제 자료에서는 이 점수를 구할 수 없습니다.',
       'ICA는 확률적 알고리즘이라 seed가 바뀌면 성분의 순서와 부호가 바뀝니다.',
+    ],
+  },
+  phase: {
+    kind: 'simulated',
+    limits: [
+      '주파수 하나짜리 이상적인 사인파입니다. 실제 EEG의 위상은 필터와 대역 폭에 따라 달라집니다.',
+      '화살표 길이를 모두 1로 두었습니다. 코히어런스처럼 진폭으로 가중하는 지표는 결과가 조금 다릅니다.',
     ],
   },
   connectivity: {
