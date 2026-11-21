@@ -11,6 +11,7 @@ import { CONNECTIVITY_BASELINE_PREDICTION, CONNECTIVITY_EXPERIMENTS, summarizeCo
 import { useGradedLesson } from '../lessons/useGradedLesson'
 import { ComparisonReadout, ConnectivityDiagnostics, EstimatePanel, GeneratingNetwork, METRIC_GUIDE, RecipeSummary } from './ConnectivityLessonViews'
 import './connectivity-lesson.css'
+import { MathSteps } from './MathSteps'
 
 const STEPS = [
   { label: '만들기(Build)', description: '숨은 원천 사이의 관계를 정합니다.', icon: Network },
@@ -174,6 +175,7 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
           <button className="quiet-button" disabled={!ready || busy !== null || !lesson.ready} onClick={() => void execute('estimate')}><Play size={14} />{busy === 'estimate' ? '추정 중…' : baseline ? '2 · B 추정(Estimate)' : '2 · 연결성 추정(Estimate)'}</button>
           {!ready && <p>추정하기 전에 현재 설정으로 EEG를 생성하세요.</p>}
         </div>
+        <MathSteps lab="connectivity" actions={{ arrow: { label: '준비 장에서 화살표 움직여 보기', onClick: () => onLabChange('phase') } }} />
       </aside>
       <section className="conn-lesson-canvas" aria-label="연결성 학습 순서">
         <header className="conn-lesson-header"><span className="eyebrow"><span className="data-kind simulated">시뮬레이션 · 정답을 앎</span> 통제된 시뮬레이션 · 해부학적 뇌 모형이 아님</span><h2>두피까지 오는 동안 무엇이 남는가?</h2><p>원천 사이의 관계, 비슷해 보이는 파형, 센서 사이의 연결선은 서로 다른 것입니다. 같은 자료를 단계마다 따라가 보세요.</p>

@@ -17,6 +17,8 @@ import { JobProgress } from './JobProgress'
 import { MetricCatalog } from './MetricCatalog'
 import { buildRecipe, defaultDraft, draftFromRecipe, jobActive, jobSettled, sameDraft } from './model'
 import { ResultsExplorer } from './ResultsExplorer'
+import { BENCH_CRITERIA, BENCH_PRESETS, benchmarkScoreRows } from './scoreboard'
+import { MethodScoreboard } from '../../components/MethodScoreboard'
 import type { BenchmarkCapabilities, BenchmarkDraft, BenchmarkJob, ExperimentResults } from './types'
 import './benchmarks.css'
 
@@ -277,6 +279,24 @@ export function BenchmarkWorkbench({ activeLab, onLabChange, pollIntervalMs = 15
                 {active && run?.experimentId !== displayed.experiment_id && ' 새 작업이 진행 중이며, 끝나기 전까지 이 결과를 유지합니다.'}
               </p>
               <ResultsExplorer key={displayed.experiment_id + (displayed.job?.job_id ?? '')} results={displayed} capabilities={capabilities} />
+              {Array.isArray(displayed.evaluation) && displayed.evaluation.length > 0 && (
+                <MethodScoreboard
+                  key={`score-${displayed.experiment_id}`}
+                  title="지표 점수판(Scoreboard)"
+                  caption="같은 JR 회로의 정답 간선에 대한 지표별 성적입니다. 단위가 다른 지표를 공정하게 비교하려고, 모든 칸은 그 지표 안에서의 비율입니다."
+                  rows={benchmarkScoreRows(displayed, capabilities)}
+                  criteria={BENCH_CRITERIA}
+                  presets={BENCH_PRESETS}
+                  scatter={{ x: 'volume', y: 'edges', xLabel: '혼합만으로 바뀐 정도(|변화율|)', yLabel: '간선 찾기(소스 AUC)', goodCorner: '왼쪽 위가 좋음(간선은 잘 찾고 혼합에는 덜 흔들림)', yMax: 1 }}
+                  howScored={[
+                    '정답은 JR 회로의 구조 연결 C입니다. 분석은 정답을 보지 않고, 채점 단계에서만 정답과 비교합니다(정답 격리). 간접 경로 때문에 비간선 값이 큰 것은 알고리즘 실패로 치지 않습니다.',
+                    '지표마다 간선을 가장 잘 찾은 대역(또는 tau) 하나를 골라 그 대역으로 모든 칸을 계산합니다. 행 이름 옆에 적힌 것이 그 대역입니다.',
+                    'wSMI는 PLV보다 값이 100배쯤 작습니다. 그래서 효과의 크기 자체가 아니라 "원신호 효과 대비 몇 %", "혼합 전 값 대비 몇 %"처럼 지표 안의 비율만 씁니다.',
+                    `seed ${displayed.seeds.length}개 결과입니다. seed가 적으면 순위가 쉽게 흔들립니다. 결론을 내리려면 core-comparison profile(seed 30개)로 다시 실행하세요.`,
+                    '이 화면에는 계산 시간과 필요한 자료 길이가 없습니다. 자료 길이는 왼쪽 설정의 길이를 바꿔 다시 실행해 비교하세요.',
+                  ]}
+                />
+              )}
             </>
           ) : (
             <div className="empty-stage">
