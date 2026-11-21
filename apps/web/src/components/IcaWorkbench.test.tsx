@@ -96,6 +96,9 @@ describe('IcaWorkbench flow', () => {
     expect(await screen.findByRole('img', { name: 'Eight-channel simulated contaminated EEG browser' })).toBeVisible()
     expect(screen.getByText('8채널 · 공통 이득')).toBeVisible()
     expect(simulateIcaMock).toHaveBeenCalledWith(defaultIcaRecipe)
+    // Predict (or explicitly skip) before the fit that the truth will grade.
+    expect(screen.getByRole('button', { name: '생성한 EEG에 ICA 적합(Fit ICA)' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /예측 없이 진행/ }))
     expect(screen.getByRole('button', { name: '생성한 EEG에 ICA 적합(Fit ICA)' })).toBeEnabled()
   })
 
@@ -106,9 +109,11 @@ describe('IcaWorkbench flow', () => {
   })
 
   it('shows an unmatched residual instead of a blink truth in the no-artifact control', async () => {
+    window.localStorage.clear()
     render(<IcaWorkbench activeLab="ica" onLabChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: '아티팩트 없는 대조군' }))
+    fireEvent.click(screen.getByRole('button', { name: /아티팩트 없는 대조군깜박임 진폭/ }))
+    fireEvent.click(screen.getByRole('radio', { name: '한 성분은 대응하는 원천이 없다' }))
     fireEvent.click(screen.getByRole('button', { name: '시뮬레이션 EEG 생성(Generate)' }))
     expect(await screen.findByText('심어 둔 아티팩트')).toBeVisible()
     expect(screen.getByText('없음', { selector: '.simulation-summary span' })).toBeVisible()
@@ -120,6 +125,9 @@ describe('IcaWorkbench flow', () => {
     expect(screen.getByText(/남은 센서 잡음이나 분해 잔여분/)).toBeVisible()
     expect(screen.queryByText(/blink · r 0\.00/i)).not.toBeInTheDocument()
     expect(fitIcaMock).toHaveBeenCalledWith(expect.objectContaining({ blink_amplitude_uv: 0 }))
+    expect(screen.getByText('예측이 맞았습니다')).toBeVisible()
+    expect(screen.getByText(/대응하는 원천이 없습니다/)).toBeVisible()
+    expect(screen.getByText('1 / 5 완료')).toBeVisible()
   })
 
   it('renders every channel in the before and after EEG comparison', async () => {

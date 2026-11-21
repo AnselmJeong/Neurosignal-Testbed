@@ -8,13 +8,14 @@ import type { GradedPrediction } from '../lessons/samplingLesson'
 /** null = not answered yet, 'skip' = learner chose to run without predicting. */
 export type PredictionAnswer = string | 'skip' | null
 
-export function PredictionChoices({ prediction, answer, onAnswer, reason, onReason, locked }: {
+export function PredictionChoices({ prediction, answer, onAnswer, reason, onReason, locked, reasonPlaceholder = '예: 60 Hz는 저역 통과 차단 주파수보다 높다' }: {
   prediction: GradedPrediction
   answer: PredictionAnswer
   onAnswer: (answer: PredictionAnswer) => void
   reason: string
   onReason: (reason: string) => void
   locked: boolean
+  reasonPlaceholder?: string
 }) {
   return (
     <section className="prediction-block graded-prediction" aria-labelledby="prediction-question">
@@ -39,7 +40,7 @@ export function PredictionChoices({ prediction, answer, onAnswer, reason, onReas
       {answer !== null && answer !== 'skip' && (
         <label className="prediction-reason">
           <span>이유를 한 줄로 (선택)</span>
-          <input value={reason} disabled={locked} onChange={(event) => onReason(event.target.value)} placeholder="예: 60 Hz는 저역 통과 차단 주파수보다 높다" />
+          <input value={reason} disabled={locked} onChange={(event) => onReason(event.target.value)} placeholder={reasonPlaceholder} />
         </label>
       )}
       <button type="button" className="prediction-skip" disabled={locked} aria-pressed={answer === 'skip'} onClick={() => onAnswer(answer === 'skip' ? null : 'skip')}>
@@ -82,12 +83,13 @@ export interface TryThisItem {
   change: string
 }
 
-export function TryThisList({ items, activeId, completed, disabled, onSelect }: {
+export function TryThisList({ items, activeId, completed, disabled, onSelect, baselineNote = '표본화율 250 Hz · 1–40 Hz 필터' }: {
   items: TryThisItem[]
   activeId: string | null
   completed: string[]
   disabled: boolean
   onSelect: (id: string | null) => void
+  baselineNote?: string
 }) {
   const done = items.filter((item) => completed.includes(item.id)).length
   return (
@@ -101,7 +103,7 @@ export function TryThisList({ items, activeId, completed, disabled, onSelect }: 
         <li>
           <button type="button" className={activeId === null ? 'active' : ''} aria-pressed={activeId === null} disabled={disabled} onClick={() => onSelect(null)}>
             <i aria-hidden="true">0</i>
-            <span><strong>기본 설정으로 시작</strong><small>표본화율 250 Hz · 1–40 Hz 필터</small></span>
+            <span><strong>기본 설정으로 시작</strong><small>{baselineNote}</small></span>
           </button>
         </li>
         {items.map((item, index) => {

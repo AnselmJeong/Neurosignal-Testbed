@@ -32,15 +32,19 @@ function result(recipe: ConnectivityRecipe): ConnectivityResult {
     provenance: { recipe_hash: 'test', created_at: '', engine_version: '0.2.5', numpy_version: '', scipy_version: '', seed: recipe.seed, sampling_rate_hz: recipe.sampling_rate_hz, units: 'a.u.', reference: recipe.reference, rank: 7 },
   }
 }
+function ensureSkip() {
+  const skip = screen.getByRole('button', { name: /예측 없이 진행|건너뛰기 취소/ })
+  if (skip.getAttribute('aria-pressed') !== 'true') fireEvent.click(skip)
+}
 async function makeA() {
   fireEvent.click(screen.getByRole('button', { name: '1 · 기준 EEG 생성(Generate)' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: '2 · 연결성 추정(Estimate)' })).toBeEnabled())
+  await waitFor(() => { ensureSkip(); expect(screen.getByRole('button', { name: '2 · 연결성 추정(Estimate)' })).toBeEnabled() })
   fireEvent.click(screen.getByRole('button', { name: '2 · 연결성 추정(Estimate)' }))
   await screen.findByRole('article', { name: 'A · 저장한 기준' })
 }
 async function makeB() {
   fireEvent.click(screen.getByRole('button', { name: '1 · 비교용 EEG 생성(Generate)' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled())
+  await waitFor(() => { ensureSkip(); expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled() })
   fireEvent.click(screen.getByRole('button', { name: '2 · B 추정(Estimate)' }))
   await screen.findByRole('article', { name: 'B · 최근 추정' })
 }
@@ -69,7 +73,7 @@ describe('connectivity teaching sequence', () => {
   it('freezes A, compares a controlled B change, and can promote B', async () => {
     render(<ConnectivityWorkbench activeLab="connectivity" onLabChange={vi.fn()} />)
     await makeA()
-    fireEvent.click(screen.getByRole('button', { name: '공유 알파 빼기' }))
+    fireEvent.click(screen.getByRole('button', { name: /공유 알파를 빼기/ }))
     expect(screen.getByRole('article', { name: 'A · 저장한 기준' })).toHaveTextContent('공유 가중치 0.78')
     expect(screen.getByRole('img', { name: /설정한 잠재 원천 네트워크: 공유 알파 성분 없음/ })).toBeVisible()
     await makeB()
@@ -86,12 +90,12 @@ describe('connectivity teaching sequence', () => {
   it('retains A on request failure and locks controls while a request is pending', async () => {
     render(<ConnectivityWorkbench activeLab="connectivity" onLabChange={vi.fn()} />)
     await makeA()
-    fireEvent.click(screen.getByRole('button', { name: '기준전극 바꾸기' }))
+    fireEvent.click(screen.getByRole('button', { name: /기준전극을 바꾸기/ }))
     let reject!: (error: Error) => void
     api.simulateConnectivity.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail }))
     fireEvent.click(screen.getByRole('button', { name: '1 · 비교용 EEG 생성(Generate)' }))
     expect(screen.getByRole('slider', { name: 'Shared alpha weight' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '기준전극 바꾸기' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /기준전극을 바꾸기/ })).toBeDisabled()
     await act(async () => reject(new Error('Service unavailable')))
     expect(screen.getByRole('alert')).toHaveTextContent('Service unavailable')
     expect(screen.getByRole('article', { name: 'A · 저장한 기준' })).toBeVisible()
@@ -103,6 +107,7 @@ describe('connectivity teaching sequence', () => {
     fireEvent.click(screen.getByRole('button', { name: '1 · 기준 EEG 생성(Generate)' }))
     await screen.findByRole('img', { name: '생성한 센서 EEG' })
     fireEvent.change(screen.getByRole('combobox', { name: 'Connectivity metric' }), { target: { value: 'plv' } })
+    ensureSkip()
     expect(screen.getByRole('button', { name: '2 · 연결성 추정(Estimate)' })).toBeEnabled()
     expect(api.simulateConnectivity).toHaveBeenCalledTimes(1)
     expect(api.runConnectivity).not.toHaveBeenCalled()
@@ -121,20 +126,21 @@ describe('connectivity teaching sequence', () => {
     expect(api.runConnectivity).toHaveBeenLastCalledWith({ ...original, metric: 'plv' })
     expect(api.simulateConnectivity).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('article', { name: 'B · 최근 추정' })).not.toBeInTheDocument()
+    ensureSkip()
     expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled()
   })
 
   it('updates saved A/B together, preserving an unestimated B preview and draft', async () => {
     render(<ConnectivityWorkbench activeLab="connectivity" onLabChange={vi.fn()} />)
     await makeA()
-    fireEvent.click(screen.getByRole('button', { name: '공유 알파 빼기' }))
+    fireEvent.click(screen.getByRole('button', { name: /공유 알파를 빼기/ }))
     await makeB()
     expect(screen.getByRole('button', { name: 'B - 비교 EEG' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'A - 기준 EEG' })).toBeVisible()
     const [a, b] = api.runConnectivity.mock.calls.map(call => call[0])
     fireEvent.change(screen.getByRole('slider', { name: 'Field spread' }), { target: { value: '0.2' } })
     fireEvent.click(screen.getByRole('button', { name: '1 · 비교용 EEG 생성(Generate)' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled())
+    await waitFor(() => { ensureSkip(); expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled() })
     let finishA!: (value: ConnectivityResult) => void
     let finishB!: (value: ConnectivityResult) => void
     api.runConnectivity.mockImplementationOnce(() => new Promise(resolve => { finishA = resolve }))
@@ -149,6 +155,7 @@ describe('connectivity teaching sequence', () => {
     expect(screen.getByRole('article', { name: 'A · 저장한 기준' })).toHaveTextContent('PLV')
     expect(screen.getByRole('article', { name: 'B · 최근 추정' })).toHaveTextContent('PLV')
     expect(screen.getByRole('slider', { name: 'Field spread' })).toHaveValue('0.2')
+    ensureSkip()
     expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled()
     expect(api.simulateConnectivity).toHaveBeenCalledTimes(3)
     expect(screen.getByRole('heading', { name: '가장 크게 바뀐 센서 쌍 · B − A' })).toBeVisible()
@@ -159,7 +166,7 @@ describe('connectivity teaching sequence', () => {
   it('rolls back both saved results and the selector if one recalculation fails, then retries', async () => {
     render(<ConnectivityWorkbench activeLab="connectivity" onLabChange={vi.fn()} />)
     await makeA()
-    fireEvent.click(screen.getByRole('button', { name: '공유 알파 빼기' }))
+    fireEvent.click(screen.getByRole('button', { name: /공유 알파를 빼기/ }))
     await makeB()
     api.runConnectivity.mockImplementationOnce(async recipe => result(recipe))
       .mockRejectedValueOnce(new Error('B failed'))
@@ -178,7 +185,7 @@ describe('connectivity teaching sequence', () => {
   it('applies spectral mode changes to both saved conditions', async () => {
     render(<ConnectivityWorkbench activeLab="connectivity" onLabChange={vi.fn()} />)
     await makeA()
-    fireEvent.click(screen.getByRole('button', { name: '기준전극 바꾸기' }))
+    fireEvent.click(screen.getByRole('button', { name: /기준전극을 바꾸기/ }))
     await makeB()
     fireEvent.click(screen.getByText('신호와 추정의 세부 설정'))
     fireEvent.change(screen.getByRole('combobox', { name: 'Spectral mode' }), { target: { value: 'fourier' } })
@@ -186,5 +193,21 @@ describe('connectivity teaching sequence', () => {
     expect(screen.getByRole('article', { name: 'A · 저장한 기준' })).toHaveTextContent('fourier')
     expect(api.runConnectivity.mock.calls.slice(2).map(call => call[0].spectral_mode)).toEqual(['fourier', 'fourier'])
     expect(api.simulateConnectivity).toHaveBeenCalledTimes(2)
+  })
+
+  it('grades a Try this card when the B estimate lands', async () => {
+    window.localStorage.clear()
+    render(<ConnectivityWorkbench activeLab="connectivity" onLabChange={vi.fn()} />)
+    await makeA()
+    fireEvent.click(screen.getByRole('button', { name: /공유 알파를 빼기/ }))
+    fireEvent.click(screen.getByRole('radio', { name: '거의 그대로다' }))
+    fireEvent.click(screen.getByRole('button', { name: '1 · 비교용 EEG 생성(Generate)' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: '2 · B 추정(Estimate)' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: '2 · B 추정(Estimate)' }))
+    await screen.findByRole('article', { name: 'B · 최근 추정' })
+    expect(api.runConnectivity.mock.calls.at(-1)![0].coupling_strength).toBe(0)
+    expect(screen.getByText('예측이 맞았습니다')).toBeVisible()
+    expect(screen.getByText(/귀무 임계값 .* 넘었습니다/)).toBeVisible()
+    expect(screen.getByText('1 / 4 완료')).toBeVisible()
   })
 })
