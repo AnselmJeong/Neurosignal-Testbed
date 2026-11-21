@@ -127,7 +127,7 @@ describe('IcaWorkbench flow', () => {
     expect(fitIcaMock).toHaveBeenCalledWith(expect.objectContaining({ blink_amplitude_uv: 0 }))
     expect(screen.getByText('예측이 맞았습니다')).toBeVisible()
     expect(screen.getByText(/대응하는 원천이 없습니다/)).toBeVisible()
-    expect(screen.getByText('1 / 5 완료')).toBeVisible()
+    expect(screen.getByText('1 / 7 완료')).toBeVisible()
   })
 
   it('renders every channel in the before and after EEG comparison', async () => {
@@ -154,5 +154,56 @@ describe('IcaWorkbench flow', () => {
     expect(screen.getByText('LOCKED SCALE')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Increase amplitude gain' }))
     expect(screen.getByText(/EEG ±1.*µV.*2×/)).toBeVisible()
+  })
+  it('runs the mixed-component card: four checks, composition and the cost of one exclusion', async () => {
+    const channels = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T7', 'C3', 'Cz', 'C4', 'T8', 'P7', 'P3', 'Pz', 'P4', 'P8', 'O1', 'O2']
+    const multiRecipe = { ...defaultIcaRecipe, scenario: 'multi_artifact' as const, component_count: 10, mixed_component: true }
+    simulateIcaMock.mockResolvedValue({
+      run_id: 'ica_input_multi', state: 'completed', recipe: multiRecipe,
+      sensor_trace: { x: [0, 0.004], series: Object.fromEntries(channels.map((name) => [name, [0, 1]])), x_unit: 's', y_unit: 'µV' },
+      source_labels: ['alpha', 'theta', 'beta', 'blink', 'horizontal eye', 'muscle', 'heartbeat', 'bad electrode'],
+      channel_names: channels, rank: 18, provenance: {},
+    })
+    const base = { time_s: [0, 0.004], trace: [0, 1], frequency_hz: [1, 2], power: [1, 0.1], topography: channels.map(() => 0.2), suggestion_probability: 0.9, explained_variance_pct: 10 }
+    fitIcaMock.mockResolvedValue({
+      run_id: 'ica_fit_multi', state: 'completed', recipe: multiRecipe, warnings: [],
+      raw_trace: { x: [0, 0.004], series: { 'Contaminated · Fp1': [0, 1] }, x_unit: 's', y_unit: 'µV' },
+      components: [
+        { ...base, index: 0, suggested_label: 'eye blink', matched_truth: 'blink', matched_correlation: 0.9, matched_kind: 'artifact', truth_correlations: { blink: 0.9, theta: 0.36 }, artifact_removed_pct: 21.7, neural_loss_pct: 54.5, artifact_removed_by_type: { blink: 99.7 } },
+        { ...base, index: 1, suggested_label: 'brain', matched_truth: 'bad electrode', matched_correlation: 0.99, matched_kind: 'artifact', truth_correlations: { 'bad electrode': 0.99 }, artifact_removed_pct: 8.9, neural_loss_pct: 2.8, artifact_removed_by_type: { 'bad electrode': 95.6 } },
+        { ...base, index: 2, suggested_label: 'brain', matched_truth: 'alpha', matched_correlation: 0.99, matched_kind: 'neural', truth_correlations: { alpha: 0.99 }, artifact_removed_pct: 0, neural_loss_pct: 77.9, artifact_removed_by_type: {} },
+        { ...base, index: 3, suggested_label: 'other', matched_truth: 'muscle', matched_correlation: 0.99, matched_kind: 'artifact', truth_correlations: { muscle: 0.99 }, artifact_removed_pct: 6.6, neural_loss_pct: 1.9, artifact_removed_by_type: { muscle: 100 } },
+        { ...base, index: 4, suggested_label: 'other', matched_truth: null, matched_correlation: null, matched_kind: null, truth_correlations: {}, artifact_removed_pct: 0, neural_loss_pct: 0.2, artifact_removed_by_type: {} },
+      ],
+      compatibility: { fingerprint: 'multi', channel_names: channels, bad_channels: [], reference: 'average', rank: 18, fit_highpass_hz: 1 },
+      blink_component_index: 0, mean_matched_correlation: 0.97, icalabel_available: true,
+      artifact_labels: ['blink', 'horizontal eye', 'muscle', 'heartbeat', 'bad electrode'], provenance: {},
+    })
+    render(<IcaWorkbench activeLab="ica" onLabChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /^섞인 성분/ }))
+    expect(screen.getByRole('checkbox', { name: /섞인 성분 만들기/ })).toBeChecked()
+    expect(screen.getByText(/센서 채널 19개로 섞습니다/)).toBeVisible()
+    fireEvent.click(screen.getByRole('radio', { name: '절반쯤 잃는다' }))
+    fireEvent.click(screen.getByRole('button', { name: '시뮬레이션 EEG 생성(Generate)' }))
+    expect(await screen.findByRole('img', { name: 'Nineteen-channel simulated contaminated EEG browser' })).toBeVisible()
+    expect(simulateIcaMock).toHaveBeenCalledWith(expect.objectContaining({ scenario: 'multi_artifact', mixed_component: true, component_count: 10 }))
+    fireEvent.click(screen.getByRole('button', { name: '생성한 EEG에 ICA 적합(Fit ICA)' }))
+    expect(await screen.findByRole('group', { name: '지형도(Topography) 판단' })).toBeVisible()
+    expect(screen.getAllByRole('img', { name: /IC \d+ 두피 지형도/ }).length).toBeGreaterThanOrEqual(6)
+
+    const checks = screen.getByRole('region', { name: '네 가지 확인' })
+    expect(within(checks).getByText(/0\/4 확인/)).toBeVisible()
+    for (const label of ['지형도(Topography)', '시계열(Time course)', '스펙트럼(Spectrum)']) {
+      fireEvent.click(within(screen.getByRole('group', { name: `${label} 판단` })).getByRole('button', { name: '아티팩트' }))
+    }
+    fireEvent.click(within(screen.getByRole('group', { name: '분산과 참고 라벨 판단' })).getByRole('button', { name: '신경' }))
+    expect(within(checks).getByText(/단서가 갈립니다/)).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /원천 정체 공개/ }))
+    expect(screen.getByText('예측이 맞았습니다')).toBeVisible()
+    expect(screen.getByText('세타(theta) · r 0.36')).toBeVisible()
+    expect(screen.getByText('신경 신호 54.5%')).toBeVisible()
+    expect(screen.getByText('깜박임(blink) 100% 제거')).toBeVisible()
+    expect(screen.getAllByText('섞임').length).toBe(1)
   })
 })

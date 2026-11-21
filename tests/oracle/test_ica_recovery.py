@@ -49,9 +49,7 @@ def test_manual_blink_exclusion_attenuates_artifact_with_bounded_distortion(
     planted_fit,
 ) -> None:
     assert planted_fit.blink_component_index is not None
-    result = apply_ica_exclusions(
-        apply_request(planted_fit, [planted_fit.blink_component_index])
-    )
+    result = apply_ica_exclusions(apply_request(planted_fit, [planted_fit.blink_component_index]))
     assert result.compatibility_verified is True
     assert list(result.before_after_trace.series) == [
         f"{state} · {channel}"
@@ -71,9 +69,7 @@ def test_incompatible_reference_blocks_apply(planted_fit) -> None:
 
 
 def test_no_artifact_control_exposes_cost_of_unnecessary_removal() -> None:
-    control = fit_ica_workbench(
-        IcaRecipe(blink_amplitude_uv=0)
-    )
+    control = fit_ica_workbench(IcaRecipe(blink_amplitude_uv=0))
     result = apply_ica_exclusions(apply_request(control, [0]))
     unmatched = [component for component in control.components if component.matched_truth is None]
     assert control.blink_component_index is None
@@ -87,3 +83,62 @@ def test_no_artifact_control_exposes_cost_of_unnecessary_removal() -> None:
     }
     assert result.artifact_attenuation_db < 0
     assert result.neural_distortion_pct > 50
+
+
+MULTI = {"scenario": "multi_artifact", "component_count": 10}
+
+
+@pytest.fixture(scope="module")
+def multi_fit():
+    return fit_ica_workbench(IcaRecipe(**MULTI))
+
+
+def test_multi_artifact_variant_uses_nineteen_channels_and_recovers_every_source(multi_fit) -> None:
+    assert len(multi_fit.compatibility.channel_names) == 19
+    assert multi_fit.compatibility.rank == 18
+    assert multi_fit.artifact_labels == [
+        "blink",
+        "horizontal eye",
+        "muscle",
+        "heartbeat",
+        "bad electrode",
+    ]
+    matched = {c.matched_truth: c for c in multi_fit.components if c.matched_truth}
+    assert set(matched) == {
+        "alpha",
+        "theta",
+        "beta",
+        "blink",
+        "horizontal eye",
+        "muscle",
+        "heartbeat",
+        "bad electrode",
+    }
+    assert all(c.matched_correlation > 0.95 for c in matched.values())
+    assert {c.matched_kind for c in matched.values()} == {"neural", "artifact"}
+
+
+def test_single_exclusion_costs_separate_artifacts_from_neural_components(multi_fit) -> None:
+    for component in multi_fit.components:
+        if component.matched_kind == "artifact":
+            assert component.artifact_removed_by_type[component.matched_truth] > 70
+            assert component.neural_loss_pct < 10
+        elif component.matched_kind == "neural":
+            assert component.neural_loss_pct > 25
+
+
+def test_removing_every_artifact_component_scores_each_type(multi_fit) -> None:
+    artifacts = [c.index for c in multi_fit.components if c.matched_kind == "artifact"]
+    result = apply_ica_exclusions(apply_request(multi_fit, artifacts))
+    assert len(result.before_after_trace.series) == 38
+    assert result.artifact_removed_pct > 99
+    assert min(result.artifact_removed_by_type.values()) > 90
+    assert result.neural_distortion_pct < 20
+
+
+def test_mixed_component_makes_blink_removal_cost_frontal_theta() -> None:
+    mixed = fit_ica_workbench(IcaRecipe(**MULTI, mixed_component=True))
+    blink = next(c for c in mixed.components if c.matched_truth == "blink")
+    assert blink.truth_correlations["theta"] > 0.3
+    assert blink.neural_loss_pct > 40
+    assert not any(c.matched_truth == "theta" for c in mixed.components)

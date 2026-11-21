@@ -32,6 +32,36 @@ from neurobridge.display import round_significant, view_indices
 
 CHANNEL_NAMES = ("Fp1", "Fp2", "F7", "F8", "C3", "C4", "O1", "O2")
 TRUTH_LABELS = ("alpha", "theta", "beta", "blink")
+NEURAL_LABELS = ("alpha", "theta", "beta")
+
+# 19-channel 10–20 variant with several artifact types (P1-4). Positions are a flat head map:
+# x from left (-1) to right (+1), y from back (-1) to nose (+1).
+MULTI_CHANNEL_POSITIONS: dict[str, tuple[float, float]] = {
+    "Fp1": (-0.3, 0.95),
+    "Fp2": (0.3, 0.95),
+    "F7": (-0.8, 0.6),
+    "F3": (-0.4, 0.5),
+    "Fz": (0.0, 0.5),
+    "F4": (0.4, 0.5),
+    "F8": (0.8, 0.6),
+    "T7": (-1.0, 0.0),
+    "C3": (-0.5, 0.0),
+    "Cz": (0.0, 0.0),
+    "C4": (0.5, 0.0),
+    "T8": (1.0, 0.0),
+    "P7": (-0.8, -0.6),
+    "P3": (-0.4, -0.5),
+    "Pz": (0.0, -0.5),
+    "P4": (0.4, -0.5),
+    "P8": (0.8, -0.6),
+    "O1": (-0.3, -0.95),
+    "O2": (0.3, -0.95),
+}
+MULTI_CHANNEL_NAMES = tuple(MULTI_CHANNEL_POSITIONS)
+MULTI_ARTIFACT_LABELS = ("blink", "horizontal eye", "muscle", "heartbeat", "bad electrode")
+MULTI_TRUTH_LABELS = NEURAL_LABELS + MULTI_ARTIFACT_LABELS
+BAD_ELECTRODE = "C3"
+MIN_MATCH = 0.3
 
 
 @dataclass(frozen=True)
@@ -42,6 +72,10 @@ class ArtifactSimulation:
     clean_target_uv: NDArray[np.float64]
     artifact_sensor_uv: NDArray[np.float64]
     mixing_matrix: NDArray[np.float64]
+    channel_names: tuple[str, ...] = CHANNEL_NAMES
+    truth_labels: tuple[str, ...] = TRUTH_LABELS
+    artifact_parts: dict[str, NDArray[np.float64]] | None = None
+    neural_uv: NDArray[np.float64] | None = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +88,8 @@ class FittedIca:
     compatibility: IcaCompatibility
     component_sources: NDArray[np.float64]
     assignment: dict[int, tuple[int, float]]
+    truth_correlations: NDArray[np.float64]
+    active_truth_indices: NDArray[np.int64]
 
 
 def _average_reference(values: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -70,8 +106,152 @@ def _blink_waveform(time_s: NDArray[np.float64], amplitude_uv: float) -> NDArray
     return waveform
 
 
+def channel_names_for(recipe: IcaRecipe) -> tuple[str, ...]:
+    return MULTI_CHANNEL_NAMES if recipe.scenario == "multi_artifact" else CHANNEL_NAMES
+
+
+def artifact_labels_for(recipe: IcaRecipe) -> tuple[str, ...]:
+    return MULTI_ARTIFACT_LABELS if recipe.scenario == "multi_artifact" else ("blink",)
+
+
+def _blob(center: tuple[float, float], width: float) -> NDArray[np.float64]:
+    xy = np.asarray(list(MULTI_CHANNEL_POSITIONS.values()), dtype=float)
+    distance = np.sum((xy - np.asarray(center)) ** 2, axis=1)
+    return np.exp(-0.5 * distance / width**2)
+
+
+def _saccades(
+    time_s: NDArray[np.float64], rng: np.random.Generator, sfreq: int
+) -> NDArray[np.float64]:
+    """Look left and right: a staircase of gaze positions with ~30 ms ramps."""
+
+    level = np.zeros_like(time_s)
+    current = 0.0
+    t = 0.6
+    while t < time_s[-1]:
+        current = float(rng.choice([-1.0, 1.0])) * 45.0 if current == 0.0 else 0.0
+        level[time_s >= t] = current
+        t += float(rng.uniform(0.9, 1.8))
+    ramp = max(1, int(0.03 * sfreq))
+    return np.convolve(level, np.ones(ramp) / ramp, mode="same")
+
+
+def _muscle(
+    time_s: NDArray[np.float64], rng: np.random.Generator, sfreq: int
+) -> NDArray[np.float64]:
+    """Jaw clenches: broadband 25–90 Hz noise in a few bursts."""
+
+    sos = signal.butter(4, [25, min(90, sfreq / 2 - 5)], btype="bandpass", fs=sfreq, output="sos")
+    noise = signal.sosfiltfilt(sos, rng.normal(0, 1, time_s.size))
+    noise /= max(float(noise.std()), np.finfo(float).eps)
+    envelope = np.zeros_like(time_s)
+    for start in np.arange(0.9, time_s[-1] - 1.0, 3.1):
+        length = float(rng.uniform(0.7, 1.3))
+        mask = (time_s >= start) & (time_s < start + length)
+        envelope[mask] = signal.windows.tukey(int(mask.sum()), alpha=0.3)
+    return 22.0 * envelope * noise
+
+
+def _heartbeat(time_s: NDArray[np.float64]) -> NDArray[np.float64]:
+    """R peaks at 72 beats/min with a small T wave."""
+
+    waveform = np.zeros_like(time_s)
+    for beat in np.arange(0.35, time_s[-1], 60 / 72):
+        waveform += 14.0 * np.exp(-0.5 * ((time_s - beat) / 0.012) ** 2)
+        waveform += 3.0 * np.exp(-0.5 * ((time_s - beat - 0.25) / 0.05) ** 2)
+    return waveform
+
+
+def _electrode_pops(time_s: NDArray[np.float64], rng: np.random.Generator) -> NDArray[np.float64]:
+    """A loose electrode: sudden jumps that decay over a few hundred ms."""
+
+    waveform = np.zeros_like(time_s)
+    for pop in (2.2, 5.9, 9.4):
+        if pop >= time_s[-1]:
+            continue
+        after = time_s >= pop
+        sign = float(rng.choice([-1.0, 1.0]))
+        waveform[after] += sign * 70.0 * np.exp(-(time_s[after] - pop) / 0.35)
+    return waveform
+
+
+def _simulate_multi_artifact(recipe: IcaRecipe) -> ArtifactSimulation:
+    rng = np.random.default_rng(recipe.seed)
+    count = int(round(recipe.duration_s * recipe.sampling_rate_hz))
+    time_s = np.arange(count, dtype=float) / recipe.sampling_rate_hz
+    sfreq = recipe.sampling_rate_hz
+    alpha_envelope = 0.68 + 0.32 * np.sin(2 * np.pi * 0.21 * time_s) ** 2
+    alpha = 14 * alpha_envelope * np.sin(2 * np.pi * 10 * time_s + 0.25)
+    theta_envelope = 0.75 + 0.25 * np.sin(2 * np.pi * 0.13 * time_s + 1.0)
+    theta = 9 * theta_envelope * np.sin(2 * np.pi * 6 * time_s - 0.6)
+    beta_envelope = signal.windows.tukey(count, alpha=0.18)
+    beta = 5.5 * beta_envelope * np.sin(2 * np.pi * 18 * time_s + 0.8)
+    blink = _blink_waveform(time_s, recipe.blink_amplitude_uv)
+    latent_uv = np.asarray(
+        [
+            alpha,
+            theta,
+            beta,
+            blink,
+            _saccades(time_s, rng, sfreq),
+            _muscle(time_s, rng, sfreq),
+            _heartbeat(time_s),
+            _electrode_pops(time_s, rng),
+        ],
+        dtype=float,
+    )
+    x = np.asarray([position[0] for position in MULTI_CHANNEL_POSITIONS.values()])
+    y = np.asarray([position[1] for position in MULTI_CHANNEL_POSITIONS.values()])
+    blink_column = _blob((0.0, 1.2), 0.38)
+    bad_column = np.asarray([1.0 if name == BAD_ELECTRODE else 0.0 for name in MULTI_CHANNEL_NAMES])
+    columns = [
+        _blob((0.0, -0.9), 0.5),
+        # Frontal-midline theta. "Mixed component" gives it the blink's exact scalp pattern,
+        # so no unmixing can tell the two apart and one component carries both.
+        blink_column.copy() if recipe.mixed_component else _blob((0.0, 0.45), 0.42),
+        _blob((-0.5, 0.05), 0.33) + _blob((0.5, 0.05), 0.33),
+        blink_column,
+        x * np.exp(-0.5 * (y - 0.65) ** 2 / 0.3**2),
+        _blob((1.0, 0.05), 0.32),
+        0.6 * x - 0.4 * y + 0.15,
+        bad_column,
+    ]
+    mixing = np.stack(columns, axis=1)
+    mixing /= np.linalg.norm(mixing, axis=0, keepdims=True)
+    neural_sensor = mixing[:, :3] @ latent_uv[:3]
+    parts = {
+        label: mixing[:, 3 + offset, None] * latent_uv[3 + offset]
+        for offset, label in enumerate(MULTI_ARTIFACT_LABELS)
+    }
+    artifact_sensor = np.sum(list(parts.values()), axis=0)
+    noise = rng.normal(0, recipe.sensor_noise_uv, size=neural_sensor.shape)
+    clean_target = neural_sensor + noise
+    raw_sensor = clean_target + artifact_sensor
+    if recipe.reference == "average":
+        clean_target = _average_reference(clean_target)
+        artifact_sensor = _average_reference(artifact_sensor)
+        raw_sensor = _average_reference(raw_sensor)
+        parts = {label: _average_reference(values) for label, values in parts.items()}
+        neural_sensor = _average_reference(neural_sensor)
+    return ArtifactSimulation(
+        time_s=time_s,
+        latent_uv=latent_uv,
+        raw_sensor_uv=raw_sensor,
+        clean_target_uv=clean_target,
+        artifact_sensor_uv=artifact_sensor,
+        mixing_matrix=mixing,
+        channel_names=MULTI_CHANNEL_NAMES,
+        truth_labels=MULTI_TRUTH_LABELS,
+        artifact_parts=parts,
+        neural_uv=neural_sensor,
+    )
+
+
 def simulate_artifact_recipe(recipe: IcaRecipe) -> ArtifactSimulation:
     """Create three neural sources plus a planted ocular source in display µV."""
+
+    if recipe.scenario == "multi_artifact":
+        return _simulate_multi_artifact(recipe)
 
     rng = np.random.default_rng(recipe.seed)
     count = int(round(recipe.duration_s * recipe.sampling_rate_hz))
@@ -107,6 +287,7 @@ def simulate_artifact_recipe(recipe: IcaRecipe) -> ArtifactSimulation:
         clean_target = _average_reference(clean_target)
         artifact_sensor = _average_reference(artifact_sensor)
         raw_sensor = _average_reference(raw_sensor)
+        neural_sensor = _average_reference(neural_sensor)
     return ArtifactSimulation(
         time_s=time_s,
         latent_uv=latent_uv,
@@ -114,11 +295,13 @@ def simulate_artifact_recipe(recipe: IcaRecipe) -> ArtifactSimulation:
         clean_target_uv=clean_target,
         artifact_sensor_uv=artifact_sensor,
         mixing_matrix=mixing,
+        artifact_parts={"blink": artifact_sensor},
+        neural_uv=neural_sensor,
     )
 
 
 def _raw_from_uv(values_uv: NDArray[np.float64], recipe: IcaRecipe) -> mne.io.RawArray:
-    info = mne.create_info(list(CHANNEL_NAMES), recipe.sampling_rate_hz, ch_types="eeg")
+    info = mne.create_info(list(channel_names_for(recipe)), recipe.sampling_rate_hz, ch_types="eeg")
     raw = mne.io.RawArray(values_uv * 1e-6, info, verbose=False)
     raw.set_montage("standard_1020", on_missing="raise", verbose=False)
     if recipe.reference == "average":
@@ -128,7 +311,7 @@ def _raw_from_uv(values_uv: NDArray[np.float64], recipe: IcaRecipe) -> mne.io.Ra
 
 def _compatibility_fingerprint(recipe: IcaRecipe, rank: int) -> str:
     payload = {
-        "channels": CHANNEL_NAMES,
+        "channels": channel_names_for(recipe),
         "bads": [],
         "reference": recipe.reference,
         "rank": rank,
@@ -185,9 +368,15 @@ def _fit(recipe: IcaRecipe) -> FittedIca:
         )
         for component, truth_column in zip(component_rows, truth_columns, strict=True)
     }
+    if recipe.scenario == "multi_artifact":
+        # With many sources, the optimal pairing can hand a leftover source to a pure-noise
+        # component (r ≈ 0.03). Such a pairing is not a recovery, so it is not reported.
+        assignment = {
+            component: match for component, match in assignment.items() if match[1] >= MIN_MATCH
+        }
     compatibility = IcaCompatibility(
         fingerprint=_compatibility_fingerprint(recipe, rank),
-        channel_names=list(CHANNEL_NAMES),
+        channel_names=list(simulation.channel_names),
         bad_channels=[],
         reference=recipe.reference,
         rank=rank,
@@ -202,6 +391,8 @@ def _fit(recipe: IcaRecipe) -> FittedIca:
         compatibility=compatibility,
         component_sources=component_sources,
         assignment=assignment,
+        truth_correlations=correlations,
+        active_truth_indices=active_truth_indices,
     )
 
 
@@ -245,9 +436,7 @@ def _label_components(
                 code="icalabel_unavailable",
                 severity="info",
                 title="ICLabel이 설치되어 있지 않습니다",
-                explanation=(
-                    "자동 라벨은 선택 사항입니다. 성분 제거는 어차피 직접 골라야 합니다."
-                ),
+                explanation=("자동 라벨은 선택 사항입니다. 성분 제거는 어차피 직접 골라야 합니다."),
                 suggestion="참고 라벨을 쓰려면 프로젝트의 ica 의존성 그룹을 설치하세요.",
             )
         )
@@ -269,14 +458,14 @@ def simulate_ica_input(recipe: IcaRecipe) -> IcaSimulationResult:
         sensor_trace=SeriesData(
             x=np.round(simulation.time_s[view], 4).tolist(),
             series={
-                CHANNEL_NAMES[index]: np.round(simulation.raw_sensor_uv[index, view], 4).tolist()
-                for index in range(len(CHANNEL_NAMES))
+                name: np.round(simulation.raw_sensor_uv[index, view], 4).tolist()
+                for index, name in enumerate(simulation.channel_names)
             },
             x_unit="s",
             y_unit="µV",
         ),
-        source_labels=list(TRUTH_LABELS),
-        channel_names=list(CHANNEL_NAMES),
+        source_labels=list(simulation.truth_labels),
+        channel_names=list(simulation.channel_names),
         rank=rank,
         provenance=Provenance(
             recipe_hash=recipe_hash,
@@ -298,6 +487,9 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
     suggestions, probabilities, available, warnings = _label_components(fitted)
     view = view_indices(fitted.simulation.time_s.size)
     topographies = fitted.ica.get_components()
+    labels = fitted.simulation.truth_labels
+    artifact_labels = artifact_labels_for(recipe)
+    costs = _single_exclusion_costs(fitted, recipe)
     components: list[IcaComponentSummary] = []
     for index, source in enumerate(fitted.component_sources):
         frequency, power = signal.welch(
@@ -317,8 +509,18 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
                 suggested_label=suggestions[index],
                 suggestion_probability=probabilities[index],
                 explained_variance_pct=round(float(variance_ratio * 100), 2),
-                matched_truth=None if truth_match is None else TRUTH_LABELS[truth_match[0]],
+                matched_truth=None if truth_match is None else labels[truth_match[0]],
                 matched_correlation=None if truth_match is None else round(truth_match[1], 4),
+                matched_kind=None
+                if truth_match is None
+                else ("artifact" if labels[truth_match[0]] in artifact_labels else "neural"),
+                truth_correlations={
+                    labels[int(truth)]: round(float(fitted.truth_correlations[index, column]), 4)
+                    for column, truth in enumerate(fitted.active_truth_indices)
+                },
+                artifact_removed_pct=costs[index][0],
+                neural_loss_pct=costs[index][1],
+                artifact_removed_by_type=costs[index][2],
                 time_s=np.round(fitted.simulation.time_s[view], 4).tolist(),
                 trace=np.round(source[view], 5).tolist(),
                 frequency_hz=np.round(frequency, 4).tolist(),
@@ -327,11 +529,7 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
             )
         )
     blink_component = next(
-        (
-            index
-            for index, (truth, _) in fitted.assignment.items()
-            if TRUTH_LABELS[truth] == "blink"
-        ),
+        (index for index, (truth, _) in fitted.assignment.items() if labels[truth] == "blink"),
         None,
     )
     recipe_hash = hashlib.sha256(recipe.model_dump_json().encode()).hexdigest()[:12]
@@ -354,6 +552,7 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
             float(np.mean([correlation for _, correlation in fitted.assignment.values()])), 4
         ),
         icalabel_available=available,
+        artifact_labels=list(artifact_labels),
         provenance=Provenance(
             recipe_hash=recipe_hash,
             engine_version=__version__,
@@ -365,6 +564,56 @@ def fit_ica_workbench(recipe: IcaRecipe) -> IcaFitResult:
             rank=fitted.rank,
         ),
     )
+
+
+def _rms(values: NDArray[np.float64]) -> float:
+    return float(np.sqrt(np.mean(values**2)))
+
+
+def _apply_to(
+    fitted: FittedIca, recipe: IcaRecipe, values_uv: NDArray[np.float64], exclude: list[int]
+) -> NDArray[np.float64]:
+    raw = _raw_from_uv(values_uv, recipe)
+    fitted.ica.apply(raw, exclude=exclude, verbose=False)
+    return raw.get_data() * 1e6
+
+
+def _removal_scores(
+    fitted: FittedIca, recipe: IcaRecipe, exclude: list[int]
+) -> tuple[float, float, dict[str, float]]:
+    """Exact cost of an exclusion, known only because the parts were simulated separately.
+
+    Returns (artifact power removed %, neural signal RMS lost %, removed % per artifact type).
+    """
+
+    simulation = fitted.simulation
+    # Noise-free neural part: removing a pure-noise dimension should cost nothing here.
+    neural = (
+        simulation.neural_uv if simulation.neural_uv is not None else simulation.clean_target_uv
+    )
+    neural_after = _apply_to(fitted, recipe, neural, exclude)
+    neural_loss = _rms(neural_after - neural) / max(_rms(neural), np.finfo(float).eps)
+    by_type: dict[str, float] = {}
+    for label, part in (simulation.artifact_parts or {}).items():
+        power = float(np.mean(part**2))
+        if power <= np.finfo(float).eps:
+            continue
+        after = _apply_to(fitted, recipe, part, exclude)
+        by_type[label] = round(max(0.0, 100 * (1 - float(np.mean(after**2)) / power)), 2)
+    total_power = float(np.mean(simulation.artifact_sensor_uv**2))
+    if total_power <= np.finfo(float).eps:
+        removed = 0.0
+    else:
+        after = _apply_to(fitted, recipe, simulation.artifact_sensor_uv, exclude)
+        removed = max(0.0, 100 * (1 - float(np.mean(after**2)) / total_power))
+    return round(removed, 2), round(float(neural_loss * 100), 2), by_type
+
+
+def _single_exclusion_costs(
+    fitted: FittedIca, recipe: IcaRecipe
+) -> list[tuple[float, float, dict[str, float]]]:
+    count = fitted.component_sources.shape[0]
+    return [_removal_scores(fitted, recipe, [index]) for index in range(count)]
 
 
 def _template_power(values: NDArray[np.float64], template: NDArray[np.float64]) -> float:
@@ -400,10 +649,18 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
     cleaned_neural_control = neural_control_raw.copy()
     fitted.ica.apply(cleaned_neural_control, exclude=exclusions, verbose=False)
     cleaned_neural_control_uv = cleaned_neural_control.get_data() * 1e6
-    blink_template = fitted.simulation.latent_uv[3]
-    before_power = _template_power(fitted.simulation.raw_sensor_uv, blink_template)
-    after_power = _template_power(cleaned_uv, blink_template)
+    if request.recipe.scenario == "multi_artifact":
+        artifact_after = _apply_to(
+            fitted, request.recipe, fitted.simulation.artifact_sensor_uv, exclusions
+        )
+        before_power = float(np.mean(fitted.simulation.artifact_sensor_uv**2))
+        after_power = float(np.mean(artifact_after**2))
+    else:
+        blink_template = fitted.simulation.latent_uv[3]
+        before_power = _template_power(fitted.simulation.raw_sensor_uv, blink_template)
+        after_power = _template_power(cleaned_uv, blink_template)
     attenuation = 10 * np.log10(max(before_power, np.finfo(float).eps) / max(after_power, 1e-12))
+    artifact_removed, _, removed_by_type = _removal_scores(fitted, request.recipe, exclusions)
     neural_rms = np.sqrt(np.mean(fitted.simulation.clean_target_uv**2))
     distortion = np.sqrt(
         np.mean((cleaned_neural_control_uv - fitted.simulation.clean_target_uv) ** 2)
@@ -417,9 +674,7 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
                 code="no_components_excluded",
                 severity="info",
                 title="제거한 성분이 없습니다",
-                explanation=(
-                    "ICA 제안은 자료를 자동으로 지우지 않으므로 출력은 그대로입니다."
-                ),
+                explanation=("ICA 제안은 자료를 자동으로 지우지 않으므로 출력은 그대로입니다."),
                 suggestion="성분을 살펴보고 직접 고른 뒤 적용하세요.",
             )
         )
@@ -431,7 +686,7 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
             x=np.round(fitted.simulation.time_s[view], 4).tolist(),
             series={
                 label: values
-                for index, channel_name in enumerate(CHANNEL_NAMES)
+                for index, channel_name in enumerate(fitted.simulation.channel_names)
                 for label, values in (
                     (
                         f"Before · {channel_name}",
@@ -449,6 +704,8 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
         artifact_attenuation_db=round(float(attenuation), 2),
         neural_distortion_pct=round(distortion_pct, 2),
         neural_retention_pct=round(max(0.0, 100 - distortion_pct), 2),
+        artifact_removed_pct=artifact_removed,
+        artifact_removed_by_type=removed_by_type,
         compatibility_verified=True,
         warnings=warnings,
     )

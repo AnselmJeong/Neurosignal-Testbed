@@ -156,7 +156,9 @@ class IcaRecipe(ContractModel):
     fit_highpass_hz: float = Field(default=1.0, ge=1.0, le=4.0)
     fit_lowpass_hz: float = Field(default=100.0, ge=30.0, le=120.0)
     algorithm: Literal["fastica", "infomax"] = "infomax"
-    component_count: int = Field(default=4, ge=3, le=7)
+    component_count: int = Field(default=4, ge=3, le=18)
+    scenario: Literal["blink", "multi_artifact"] = "blink"
+    mixed_component: bool = False
 
     @model_validator(mode="after")
     def valid_ica_band(self) -> IcaRecipe:
@@ -179,6 +181,11 @@ class IcaComponentSummary(ContractModel):
     frequency_hz: list[float]
     power: list[float]
     topography: list[float]
+    matched_kind: Literal["neural", "artifact"] | None = None
+    truth_correlations: dict[str, float] = Field(default_factory=dict)
+    artifact_removed_pct: float = 0.0
+    neural_loss_pct: float = 0.0
+    artifact_removed_by_type: dict[str, float] = Field(default_factory=dict)
 
 
 class IcaCompatibility(ContractModel):
@@ -212,6 +219,7 @@ class IcaFitResult(ContractModel):
     blink_component_index: int | None
     mean_matched_correlation: float
     icalabel_available: bool
+    artifact_labels: list[str] = Field(default_factory=list)
     provenance: Provenance
 
 
@@ -231,6 +239,8 @@ class IcaApplyResult(ContractModel):
     artifact_attenuation_db: float
     neural_distortion_pct: float
     neural_retention_pct: float
+    artifact_removed_pct: float = 0.0
+    artifact_removed_by_type: dict[str, float] = Field(default_factory=dict)
     compatibility_verified: bool
     warnings: list[WarningMessage]
 
