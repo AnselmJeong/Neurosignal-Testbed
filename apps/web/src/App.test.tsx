@@ -37,6 +37,7 @@ function fakeResult(recipe: ExperimentRecipe): ExperimentResult {
 describe('Lab 01 prediction loop', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    window.localStorage.setItem('neurosignal-start-seen', '1')
     api.checkHealth.mockResolvedValue(true)
     api.runRecipe.mockImplementation(async (recipe: ExperimentRecipe) => fakeResult(recipe))
   })
@@ -89,5 +90,15 @@ describe('Lab 01 prediction loop', () => {
     await waitFor(() => expect(screen.queryByText('미리보기 · 브라우저 계산')).not.toBeInTheDocument())
     // The graded feedback from before exploring stays as it was.
     expect(screen.getByText('예측이 맞았습니다')).toBeInTheDocument()
+  })
+
+  it('opens on the question-first start screen the first time, then goes to the chosen lab', () => {
+    window.localStorage.removeItem('neurosignal-start-seen')
+    render(<App />)
+    expect(screen.getByRole('heading', { name: '무엇이 궁금한가요?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /표본화율을 낮추면 무엇을 잃는가/ }))
+    expect(screen.getByRole('region', { name: /실험 과제/ })).toBeInTheDocument()
+    expect(window.localStorage.getItem('neurosignal-start-seen')).toBe('1')
+    expect(screen.getByText('이 Lab이 말해 주지 못하는 것')).toBeInTheDocument()
   })
 })

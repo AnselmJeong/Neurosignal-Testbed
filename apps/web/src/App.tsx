@@ -21,6 +21,7 @@ import {
 import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react'
 
 import { AboutExperience } from './components/AboutDialog'
+import { StartScreen } from './components/StartScreen'
 import { LineChart } from './components/Charts'
 import { LookHere, PredictionChoices, PredictionFeedback, TryThisList, type PredictionAnswer } from './components/LessonPanels'
 import { ConnectivityWorkbench } from './components/ConnectivityWorkbench'
@@ -55,6 +56,7 @@ const VIEW_LABELS: Record<View, string> = { 'Channel detail': '채널 상세', '
 const SOURCE_LABELS: Record<string, string> = { delta: '느린 drift', alpha: '알파 리듬(Alpha)', line: '전원 잡음(Line noise)' }
 const sourceLabel = (source: { id: string; label: string }) => SOURCE_LABELS[source.id] ?? source.label
 
+const START_SEEN_STORAGE_KEY = 'neurosignal-start-seen'
 const COMPLETED_STORAGE_KEY = 'neurosignal-lab01-completed-experiments'
 const PROJECTS_STORAGE_KEY = 'neurosignal-workspace-projects'
 const ACTIVE_PROJECT_STORAGE_KEY = 'neurosignal-active-workspace-project'
@@ -65,7 +67,12 @@ const cloneRecipe = (recipe: ExperimentRecipe): ExperimentRecipe => structuredCl
 const formatWeight = (value: number | undefined) => value === undefined ? '—' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}`
 
 function App() {
-  const [activeLab, setActiveLab] = useState<LabId>('filter')
+  // First launch opens the question-first start screen; later launches go straight to Lab 01.
+  const [activeLab, setActiveLabState] = useState<LabId>(() => window.localStorage.getItem(START_SEEN_STORAGE_KEY) ? 'filter' : 'start')
+  const setActiveLab = (lab: LabId) => {
+    if (lab !== 'start') window.localStorage.setItem(START_SEEN_STORAGE_KEY, '1')
+    setActiveLabState(lab)
+  }
   const [recipe, setRecipe] = useState<ExperimentRecipe>(() => cloneRecipe(defaultRecipe))
   const [request, setRequest] = useState<RequestState>({ status: 'idle' })
   const [baseline, setBaseline] = useState<ExperimentResult | null>(null)
@@ -300,7 +307,7 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'flow' ? <Suspense fallback={<main className="workspace"><p className="empty-stage" role="status">Information Flow 실습을 불러오는 중…</p></main>}><FlowWorkbench activeLab={activeLab} onLabChange={setActiveLab} /></Suspense> : <>
+      {activeLab === 'start' ? <StartScreen onLabChange={setActiveLab} /> : activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'flow' ? <Suspense fallback={<main className="workspace"><p className="empty-stage" role="status">Information Flow 실습을 불러오는 중…</p></main>}><FlowWorkbench activeLab={activeLab} onLabChange={setActiveLab} /></Suspense> : <>
         <main className="workspace">
         <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} />
 

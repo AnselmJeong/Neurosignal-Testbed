@@ -2,6 +2,7 @@
 // They are lab-agnostic so later labs can reuse the same pattern.
 import { Check, CheckCircle2, CircleHelp, FlaskConical, Lightbulb, SkipForward, XCircle } from 'lucide-react'
 
+import type { MethodCardContent } from '../lessons/labGuide'
 import type { GradedPrediction } from '../lessons/samplingLesson'
 
 /** null = not answered yet, 'skip' = learner chose to run without predicting. */
@@ -121,4 +122,19 @@ export function TryThisList({ items, activeId, completed, disabled, onSelect }: 
 
 export function LookHere({ children }: { children: string }) {
   return <p className="look-here" role="note"><Lightbulb size={14} aria-hidden="true" /><span><b>여기를 보세요</b> {children}</span></p>
+}
+
+/** P0-5: every method in the same four slots, so methods can be compared side by side. */
+export function MethodCard({ card }: { card: MethodCardContent }) {
+  return (
+    <article className="method-card" aria-label={`${card.label} 기법 카드`}>
+      <header><strong>{card.label}</strong><small>{card.family}</small></header>
+      <dl>
+        <div><dt>하는 일</dt><dd>{card.does}</dd></div>
+        <div className="breaks"><dt>깨지는 곳</dt><dd>{card.breaks}</dd></div>
+        <div><dt>쓸 때</dt><dd>{card.useFor}</dd></div>
+        <div><dt>피할 때</dt><dd>{card.avoidFor}</dd></div>
+      </dl>
+    </article>
+  )
 }

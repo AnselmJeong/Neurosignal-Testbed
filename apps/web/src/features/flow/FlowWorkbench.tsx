@@ -261,7 +261,7 @@ export function FlowWorkbench({ activeLab, onLabChange, pollIntervalMs = 1500 }:
       <section className="canvas-panel flw-canvas">
         <div className="canvas-toolbar">
           <div>
-            <span className="eyebrow">{tab === 'concepts' ? '개념 입문' : '표시 중인 결과'}</span>
+            <span className="eyebrow"><span className="data-kind simulated">시뮬레이션 · 정답을 앎</span> {tab === 'concepts' ? '개념 입문' : '표시 중인 결과'}</span>
             <h2>{tab === 'concepts' ? 'SC · FC · 유효 연결 · 정보 흐름' : displayed ? `${displayed.run_id} · ${displayed.profile}` : '아직 결과 없음'}</h2>
           </div>
           <div className="view-tabs" role="tablist" aria-label="Information Flow 보기">
