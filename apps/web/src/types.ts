@@ -123,6 +123,8 @@ export interface IcaRecipe {
   fit_lowpass_hz: number
   algorithm: 'fastica' | 'infomax'
   component_count: number
+  scenario: 'blink' | 'multi_artifact'
+  mixed_component: boolean
 }
 
 export interface IcaComponentSummary {
@@ -137,6 +139,13 @@ export interface IcaComponentSummary {
   frequency_hz: number[]
   power: number[]
   topography: number[]
+  /** Simulation-only truth: hidden until the learner reveals it. */
+  matched_kind?: 'neural' | 'artifact' | null
+  truth_correlations?: Record<string, number>
+  /** Exact cost of excluding this component alone. */
+  artifact_removed_pct?: number
+  neural_loss_pct?: number
+  artifact_removed_by_type?: Record<string, number>
 }
 
 export interface IcaFitResult {
@@ -162,6 +171,7 @@ export interface IcaFitResult {
   blink_component_index: number | null
   mean_matched_correlation: number
   icalabel_available: boolean
+  artifact_labels?: string[]
   provenance: ExperimentResult['provenance']
 }
 
@@ -194,6 +204,8 @@ export interface IcaApplyResult {
   artifact_attenuation_db: number
   neural_distortion_pct: number
   neural_retention_pct: number
+  artifact_removed_pct?: number
+  artifact_removed_by_type?: Record<string, number>
   compatibility_verified: boolean
   warnings: WarningMessage[]
 }
@@ -211,6 +223,8 @@ export const defaultIcaRecipe: IcaRecipe = {
   fit_lowpass_hz: 100,
   algorithm: 'infomax',
   component_count: 4,
+  scenario: 'blink',
+  mixed_component: false,
 }
 
 export type ConnectivityMetric = 'pearson' | 'coh' | 'imcoh' | 'plv' | 'ppc' | 'pli' | 'wpli'
