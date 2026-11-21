@@ -19,7 +19,7 @@ describe('MixingMatrix', () => {
       />,
     )
 
-    const secondRow = screen.getByRole('button', { name: 'Show EEG 02 sensor trace' })
+    const secondRow = screen.getByRole('button', { name: 'EEG 02 센서 신호 보기' })
     fireEvent.click(secondRow)
     fireEvent.keyDown(secondRow, { key: 'Enter' })
 

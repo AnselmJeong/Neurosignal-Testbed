@@ -152,29 +152,29 @@ def _warnings(scores: SourceReconstructionScores) -> list[WarningMessage]:
         WarningMessage(
             code="template_geometry_not_individual",
             severity="warning",
-            title="Illustrative template, not an individual head model",
+            title="개인 머리 모형이 아닌 설명용 템플릿입니다",
             explanation=(
-                "This lesson uses a 14-channel 10–20 montage and a spherical volume template. "
-                "Its ROI names describe planted simulation vertices, not anatomy recovered "
-                "from a person."
+                "이 실습은 14채널 10–20 몽타주와 구형 부피 템플릿을 씁니다. "
+                "ROI 이름은 시뮬레이션에 심은 지점을 가리킬 뿐, 사람에게서 되찾은 해부 구조가 "
+                "아닙니다."
             ),
             suggestion=(
-                "For real data, require digitization, a justified head model, and a documented "
-                "coregistration."
+                "실제 자료라면 전극 좌표, 근거 있는 머리 모형, 기록된 정합(coregistration)이 "
+                "필요합니다."
             ),
         ),
         WarningMessage(
             code="source_leakage_caveat",
             severity="warning",
-            title="Power peaks can merge, move or reflect noise",
+            title="파워 봉우리는 합쳐지거나, 옮겨 가거나, 잡음일 수 있습니다",
             explanation=(
-                "14 average-referenced channels supply at most 13 independent measurements. "
-                "Many source configurations can explain them. Relative power thresholds "
-                "detect spatial maxima but do not test statistical significance."
+                "평균 기준 채널 14개는 독립 측정값을 최대 13개만 줍니다. "
+                "여러 원천 배치가 같은 측정을 설명할 수 있습니다. 상대 파워 임계값은 "
+                "공간 극댓값을 찾을 뿐 통계적 유의성을 검정하지 않습니다."
             ),
             suggestion=(
-                "Change noise, phase, regularization and threshold. Reveal truth only after "
-                "inspecting all detected peaks, including extra and missing detections."
+                "잡음, 위상, 정규화, 임계값을 바꿔 보세요. 정답은 남는 봉우리와 빠진 봉우리까지 "
+                "모두 살펴본 뒤에만 공개하세요."
             ),
         ),
     ]

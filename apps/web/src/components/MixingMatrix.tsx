@@ -6,7 +6,7 @@ interface MixingMatrixProps {
 export function MixingMatrix({ values, selectedRow, onSelectRow }: MixingMatrixProps) {
   const max = Math.max(...values.flat().map(Math.abs), 0.01)
   return (
-    <div className="matrix" role="group" aria-label="Signed sensor by source mixing matrix">
+    <div className="matrix" role="group" aria-label="센서 × 원천 혼합 행렬(부호 포함)">
       <div className="matrix-corner" />
       {['2 Hz', '10 Hz', '60 Hz'].map((label) => <span className="matrix-head" key={label}>{label}</span>)}
       {values.map((row, rowIndex) => (
@@ -16,7 +16,7 @@ export function MixingMatrix({ values, selectedRow, onSelectRow }: MixingMatrixP
           role="button"
           tabIndex={0}
           aria-pressed={rowIndex === selectedRow}
-          aria-label={`Show EEG ${String(rowIndex + 1).padStart(2, '0')} sensor trace`}
+          aria-label={`EEG ${String(rowIndex + 1).padStart(2, '0')} 센서 신호 보기`}
           onClick={() => onSelectRow(rowIndex)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {

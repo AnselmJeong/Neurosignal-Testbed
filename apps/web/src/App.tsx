@@ -22,6 +22,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 
 import { AboutExperience } from './components/AboutDialog'
 import { LineChart } from './components/Charts'
+import { LookHere, PredictionChoices, PredictionFeedback, TryThisList, type PredictionAnswer } from './components/LessonPanels'
 import { ConnectivityWorkbench } from './components/ConnectivityWorkbench'
 import { IcaWorkbench } from './components/IcaWorkbench'
 import { ControlHint } from './components/ControlHint'
@@ -31,23 +32,28 @@ import { QeegWorkbench } from './components/QeegWorkbench'
 import { SourceModelWorkbench } from './components/SourceModelWorkbench'
 import { BenchmarkWorkbench } from './features/benchmarks/BenchmarkWorkbench'
 import { checkHealth, runRecipe } from './lib/api'
+import { BASELINE_PREDICTION, SAMPLING_EXPERIMENTS, experimentRecipe, matchesExperiment, peakChanges, summarizePeakChanges } from './lessons/samplingLesson'
 import { defaultRecipe, type ExperimentRecipe, type ExperimentResult, type RequestState } from './types'
 
 // The Information Flow lab is loaded on demand so it does not grow the initial bundle.
 const FlowWorkbench = lazy(() => import('./features/flow/FlowWorkbench').then((module) => ({ default: module.FlowWorkbench })))
 
 const STEPS = [
-  { label: 'Predict', description: 'Write what you expect the filter to preserve.', icon: CircleHelp },
-  { label: 'Generate', description: 'Create EEG from known source frequencies.', icon: Sparkles },
-  { label: 'Observe', description: 'Inspect the unfiltered sensor signal.', icon: Activity },
-  { label: 'Filter', description: 'Apply the selected preprocessing settings.', icon: SlidersHorizontal },
-  { label: 'Compare', description: 'Examine changes in time and frequency.', icon: Layers3 },
-  { label: 'Reveal', description: 'Check your prediction against the truth.', icon: Eye },
+  { label: '예측(Predict)', description: '결과를 먼저 골라 둡니다.', icon: CircleHelp },
+  { label: '생성(Generate)', description: '주파수를 아는 원천으로 EEG를 만듭니다.', icon: Sparkles },
+  { label: '관찰(Observe)', description: '처리 전 센서 신호를 봅니다.', icon: Activity },
+  { label: '필터(Filter)', description: '선택한 전처리를 적용합니다.', icon: SlidersHorizontal },
+  { label: '비교(Compare)', description: '시간과 주파수에서 변화를 봅니다.', icon: Layers3 },
+  { label: '공개(Reveal)', description: '정답과 내 예측을 대조합니다.', icon: Eye },
 ]
 
 const VIEWS = ['Channel detail', 'Filter response'] as const
 type View = (typeof VIEWS)[number]
+const VIEW_LABELS: Record<View, string> = { 'Channel detail': '채널 상세', 'Filter response': '필터 응답' }
+const SOURCE_LABELS: Record<string, string> = { delta: '느린 drift', alpha: '알파 리듬(Alpha)', line: '전원 잡음(Line noise)' }
+const sourceLabel = (source: { id: string; label: string }) => SOURCE_LABELS[source.id] ?? source.label
 
+const COMPLETED_STORAGE_KEY = 'neurosignal-lab01-completed-experiments'
 const PROJECTS_STORAGE_KEY = 'neurosignal-workspace-projects'
 const ACTIVE_PROJECT_STORAGE_KEY = 'neurosignal-active-workspace-project'
 const LEGACY_PROJECTS_STORAGE_KEY = 'neurobridge-workspace-projects'
@@ -65,13 +71,19 @@ function App() {
   const [view, setView] = useState<View>('Channel detail')
   const [selectedChannel, setSelectedChannel] = useState(0)
   const [step, setStep] = useState(0)
-  const [prediction, setPrediction] = useState('The 10 Hz peak will remain. The 60 Hz peak should be suppressed by the low-pass filter.')
+  const [activeExperimentId, setActiveExperimentId] = useState<string | null>(null)
+  const [answer, setAnswer] = useState<PredictionAnswer>(null)
+  const [reason, setReason] = useState('')
+  const [answeredFor, setAnsweredFor] = useState<{ experimentId: string | null; answer: PredictionAnswer; reason: string } | null>(null)
+  const [completedExperiments, setCompletedExperiments] = useState<string[]>(() => {
+    try { return JSON.parse(window.localStorage.getItem(COMPLETED_STORAGE_KEY) ?? '[]') as string[] } catch { return [] }
+  })
   const [truthVisible, setTruthVisible] = useState(false)
   const [serviceReady, setServiceReady] = useState<boolean | null>(null)
   const [projects, setProjects] = useState(() => {
     const saved = window.localStorage.getItem(PROJECTS_STORAGE_KEY)
       ?? window.localStorage.getItem(LEGACY_PROJECTS_STORAGE_KEY)
-    return saved ? JSON.parse(saved) as { id: string; name: string }[] : [{ id: 'learning-workspace', name: 'Learning workspace' }]
+    return saved ? JSON.parse(saved) as { id: string; name: string }[] : [{ id: 'learning-workspace', name: '학습 작업공간' }]
   })
   const [activeProjectId, setActiveProjectId] = useState(() => (
     window.localStorage.getItem(ACTIVE_PROJECT_STORAGE_KEY)
@@ -80,8 +92,15 @@ function App() {
   ))
   const [newProjectName, setNewProjectName] = useState('')
 
+  const activeExperiment = SAMPLING_EXPERIMENTS.find((item) => item.id === activeExperimentId) ?? null
+  const activePrediction = activeExperiment?.prediction ?? BASELINE_PREDICTION
   const result = request.status === 'success' ? request.data : runs[0] ?? null
   const dirty = result ? JSON.stringify(recipe) !== JSON.stringify(result.recipe) : true
+  // The prediction locked in at the last run is the one that gets graded.
+  const answeredExperiment = SAMPLING_EXPERIMENTS.find((item) => item.id === answeredFor?.experimentId) ?? null
+  const answeredPrediction = answeredExperiment?.prediction ?? BASELINE_PREDICTION
+  const predictionGraded = Boolean(result && answeredFor && matchesExperiment(result.recipe, answeredExperiment))
+  const showLookHere = Boolean(result && answeredFor && answeredFor.experimentId === activeExperimentId && activeExperiment && matchesExperiment(result.recipe, activeExperiment))
   const channelCount = result?.recipe.simulation.channel_count ?? recipe.simulation.channel_count
   const selectedChannelIndex = Math.min(selectedChannel, Math.max(0, channelCount - 1))
   const selectedChannelName = `EEG ${String(selectedChannelIndex + 1).padStart(2, '0')}`
@@ -93,6 +112,10 @@ function App() {
     && selectedFilteredTrace.length > 0
     && selectedRawPower.length > 0
     && selectedFilteredPower.length > 0
+  const removedTrace = selectedRawTrace.map((value, index) => value - (selectedFilteredTrace[index] ?? 0))
+  const peakSummary = result && selectedChannelDataAvailable
+    ? summarizePeakChanges(peakChanges(result, selectedChannelName), selectedChannelName, result.recipe.preprocessing.reference)
+    : ''
   const selectedMixingWeights = result?.mixing_matrix[selectedChannelIndex] ?? []
   const referenceMeans = result?.mixing_matrix[0]?.map((_, sourceIndex) => (
     result.mixing_matrix.reduce((sum, row) => sum + (row[sourceIndex] ?? 0), 0) / result.mixing_matrix.length
@@ -124,6 +147,10 @@ function App() {
     window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, activeProjectId)
   }, [activeProjectId])
 
+  useEffect(() => {
+    window.localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedExperiments))
+  }, [completedExperiments])
+
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? projects[0]
 
   function createProject() {
@@ -143,19 +170,31 @@ function App() {
     setRecipe({ ...recipe, preprocessing: { ...recipe.preprocessing, [key]: value } })
   }
 
+  function selectExperiment(id: string | null) {
+    const experiment = SAMPLING_EXPERIMENTS.find((item) => item.id === id) ?? null
+    setActiveExperimentId(experiment?.id ?? null)
+    setRecipe(experimentRecipe(experiment))
+    setView(experiment?.view ?? 'Channel detail')
+    setAnswer(null)
+    setReason('')
+    setTruthVisible(false)
+    setStep(0)
+  }
+
   async function execute() {
-    if (!prediction.trim()) {
+    if (answer === null) {
       setStep(0)
       return
     }
+    setAnsweredFor({ experimentId: activeExperimentId, answer, reason })
     setTruthVisible(false)
     setStep(1)
-    setRequest({ status: 'loading', stage: 'Generating known sources', progress: 18 })
+    setRequest({ status: 'loading', stage: '알려진 원천을 만드는 중', progress: 18 })
     const progressTimer = window.setInterval(() => {
       setRequest((current) => {
         if (current.status !== 'loading') return current
         const next = Math.min(current.progress + 14, 88)
-        const stage = next < 45 ? 'Projecting into sensors' : next < 72 ? 'Applying reference and filter' : 'Computing spectra and provenance'
+        const stage = next < 45 ? '센서로 투영하는 중' : next < 72 ? '기준전극과 필터를 적용하는 중' : '스펙트럼과 실행 기록을 계산하는 중'
         return { status: 'loading', stage, progress: next }
       })
     }, 180)
@@ -169,7 +208,7 @@ function App() {
       setServiceReady(true)
     } catch (error) {
       window.clearInterval(progressTimer)
-      setRequest({ status: 'error', message: error instanceof Error ? error.message : 'The run could not be completed.' })
+      setRequest({ status: 'error', message: error instanceof Error ? error.message : '실행을 마치지 못했습니다.' })
       setServiceReady(false)
     }
   }
@@ -177,7 +216,13 @@ function App() {
   function revealTruth() {
     setTruthVisible(true)
     setStep(5)
-    setView('Channel detail')
+    if (result && answeredFor && answeredFor.experimentId && matchesExperiment(result.recipe, answeredExperiment)) {
+      const id = answeredFor.experimentId
+      setCompletedExperiments((items) => items.includes(id) ? items : [...items, id])
+    }
+    // Predicting is done for this run; the next run asks again.
+    setAnswer(null)
+    setReason('')
   }
 
   return (
@@ -193,23 +238,23 @@ function App() {
         <details className="project-menu">
           <summary>
             <FolderKanban size={17} />
-            <span><span className="eyebrow">Current project</span><strong>{activeProject?.name ?? 'Learning workspace'}</strong></span>
+            <span><span className="eyebrow">현재 프로젝트</span><strong>{activeProject?.name ?? '학습 작업공간'}</strong></span>
             <ChevronDown size={14} />
           </summary>
           <div className="project-menu-panel">
-            <p>Projects keep your browser-based lab workspace separate. Imported recordings keep their own local FIF working-copy record.</p>
-            <span className="eyebrow">Open project</span>
-            <div className="project-list" role="list" aria-label="Open a project">
-              {projects.map((project) => <button key={project.id} role="listitem" className={project.id === activeProjectId ? 'active' : ''} onClick={() => setActiveProjectId(project.id)}>{project.name}</button>)}
+            <p>프로젝트는 브라우저의 Lab 작업공간을 서로 분리합니다. 가져온 기록은 각자의 로컬 FIF 작업 사본 기록을 따로 가집니다.</p>
+            <span className="eyebrow">프로젝트 열기</span>
+            <div className="project-list" role="list" aria-label="프로젝트 열기">
+              {projects.map((project) => <button key={project.id} role="listitem" className={project.id === activeProjectId ? 'active' : ''} onClick={() => setActiveProjectId(project.id)}>{project.id === 'learning-workspace' && project.name === 'Learning workspace' ? '학습 작업공간' : project.name}</button>)}
             </div>
-            <label className="project-create-field"><span>New project name</span><input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && createProject()} placeholder="e.g. Pilot 01" /></label>
-            <button className="project-create" onClick={createProject} disabled={!newProjectName.trim()}><Plus size={15} /> New project</button>
+            <label className="project-create-field"><span>새 프로젝트 이름</span><input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && createProject()} placeholder="예: Pilot 01" /></label>
+            <button className="project-create" onClick={createProject} disabled={!newProjectName.trim()}><Plus size={15} /> 새 프로젝트</button>
           </div>
         </details>
         <div className="header-actions">
           <AboutExperience />
           <span className={`service-state ${serviceReady === false ? 'offline' : ''}`}>
-            <i />{serviceReady === null ? 'Checking service' : serviceReady ? 'Local service ready' : 'Service offline'}
+            <i />{serviceReady === null ? '분석 서버 확인 중' : serviceReady ? '로컬 분석 서버 준비됨' : '분석 서버 꺼짐'}
           </span>
 
         </div>
@@ -221,30 +266,43 @@ function App() {
 
         <aside className="control-panel">
           <div className="panel-heading">
-            <span className="eyebrow">Foundations · guided</span>
-            <h1>What survives<br />the sensor?</h1>
-            <p>Change one factor. Predict the result before the known signal is revealed.</p>
+            <span className="eyebrow">기초 · 안내 실습</span>
+            <h1>센서를 거치면<br />무엇이 남는가?</h1>
+            <p>한 번에 한 가지만 바꿉니다. 정답을 공개하기 전에 결과를 먼저 예측합니다.</p>
           </div>
 
-          <section className="prediction-block">
-            <label htmlFor="prediction"><CircleHelp size={15} /> Your prediction</label>
-            <textarea id="prediction" value={prediction} onChange={(event) => setPrediction(event.target.value)} rows={3} />
-          </section>
+          <TryThisList
+            items={SAMPLING_EXPERIMENTS}
+            activeId={activeExperimentId}
+            completed={completedExperiments}
+            disabled={request.status === 'loading'}
+            onSelect={selectExperiment}
+          />
+
+          <PredictionChoices
+            prediction={activePrediction}
+            answer={answer}
+            onAnswer={setAnswer}
+            reason={reason}
+            onReason={setReason}
+            locked={request.status === 'loading'}
+          />
 
           <section className="control-section">
-            <div className="section-title"><span>Signal</span><small>KNOWN SOURCES</small></div>
+            <div className="section-title"><span>신호(Signal)</span><small>알려진 원천</small></div>
             <div className="source-list">
               {recipe.simulation.sources.map((source) => (
                 <div className="source-row" key={source.id}>
-                  <span><i className={`source-dot ${source.id}`} />{source.label}</span>
+                  <span><i className={`source-dot ${source.id}`} />{sourceLabel(source)}</span>
                   <strong>{source.frequency_hz} Hz</strong>
                   <small>{source.amplitude_uv} µV</small>
                 </div>
               ))}
             </div>
             <RangeControl
-              label="Sampling rate"
-              help="How many samples the system records per second. A lower rate can make fast signals appear at the wrong frequency."
+              label="표본화율(Sampling rate)"
+              ariaLabel="Sampling rate"
+              help="1초에 몇 번 측정하는지입니다. 표본화율이 낮으면 빠른 신호가 엉뚱한 주파수에 나타날 수 있습니다(aliasing)."
               value={recipe.simulation.sampling_rate_hz}
               min={100}
               max={500}
@@ -253,8 +311,9 @@ function App() {
               onChange={(value) => updateSimulation('sampling_rate_hz', value)}
             />
             <RangeControl
-              label="EEG background"
-              help="Sets the RMS level of 1/f-like background activity plus a small white sensor-noise component. Higher values make the known oscillations harder to recover."
+              label="EEG 배경 활동(Background)"
+              ariaLabel="EEG background"
+              help="1/f 형태의 배경 활동과 작은 백색 센서 잡음의 RMS 크기입니다. 값이 클수록 심어 둔 진동을 찾기 어려워집니다."
               value={recipe.simulation.noise_uv}
               min={0}
               max={20}
@@ -265,10 +324,11 @@ function App() {
           </section>
 
           <section className="control-section">
-            <div className="section-title"><span>Transform</span><small>REVERSIBLE</small></div>
+            <div className="section-title"><span>변환(Transform)</span><small>되돌릴 수 있음</small></div>
             <RangeControl
-              label="High-pass"
-              help="Reduces slow changes below this frequency. It can remove drift, but setting it too high can distort slow EEG activity."
+              label="고역 통과(High-pass)"
+              ariaLabel="High-pass"
+              help="이 주파수보다 느린 변화를 줄입니다. drift를 없애지만, 너무 높이면 느린 EEG 활동까지 왜곡합니다."
               value={recipe.preprocessing.highpass_hz ?? 0}
               min={0.5}
               max={8}
@@ -277,8 +337,9 @@ function App() {
               onChange={(value) => updatePreprocessing('highpass_hz', value)}
             />
             <RangeControl
-              label="Low-pass"
-              help="Reduces fast changes above this frequency. It suppresses high-frequency noise and the planted 60 Hz signal in this lesson."
+              label="저역 통과(Low-pass)"
+              ariaLabel="Low-pass"
+              help="이 주파수보다 빠른 변화를 줄입니다. 고주파 잡음과 이 Lab에 심어 둔 60 Hz 신호를 줄입니다."
               value={recipe.preprocessing.lowpass_hz ?? 40}
               min={15}
               max={90}
@@ -287,18 +348,19 @@ function App() {
               onChange={(value) => updatePreprocessing('lowpass_hz', value)}
             />
             <div className="segmented-field">
-              <span className="control-label">Reference<ControlHint>Sets the common voltage reference for all channels. Average reference changes the data rank and can change the observed sensor signal.</ControlHint></span>
+              <span className="control-label">기준전극(Reference)<ControlHint>모든 채널의 공통 전압 기준을 정합니다. 평균 기준(Average)은 자료의 rank를 바꾸고 센서 신호의 모양도 바꿀 수 있습니다.</ControlHint></span>
               <div role="group" aria-label="Reference method">
-                <button className={recipe.preprocessing.reference === 'average' ? 'selected' : ''} onClick={() => updatePreprocessing('reference', 'average')}>Average</button>
-                <button className={recipe.preprocessing.reference === 'none' ? 'selected' : ''} onClick={() => updatePreprocessing('reference', 'none')}>None</button>
+                <button className={recipe.preprocessing.reference === 'average' ? 'selected' : ''} onClick={() => updatePreprocessing('reference', 'average')}>평균(Average)</button>
+                <button className={recipe.preprocessing.reference === 'none' ? 'selected' : ''} onClick={() => updatePreprocessing('reference', 'none')}>없음(None)</button>
               </div>
             </div>
           </section>
 
+          {answer === null && <p className="run-prerequisite">위에서 예측을 고르거나 "예측 없이 진행"을 누르면 실행할 수 있습니다.</p>}
           <button className="primary-button sampling-run-button" onClick={execute}
-            disabled={request.status === 'loading' || !prediction.trim()}>
+            disabled={request.status === 'loading' || answer === null}>
             <Play size={15} fill="currentColor" />
-            {request.status === 'loading' ? 'Generating EEG…' : result ? 'Regenerate EEG' : 'Generate EEG'}
+            {request.status === 'loading' ? 'EEG 생성 중…' : result ? 'EEG 다시 생성(Regenerate)' : 'EEG 생성(Generate)'}
           </button>
 
         </aside>
@@ -306,8 +368,8 @@ function App() {
         <section className="canvas-panel sampling-canvas">
           <div className="canvas-toolbar">
             <div>
-              <span className="eyebrow">Primary canvas</span>
-              <h2>{view === 'Channel detail' ? `${selectedChannelName} · signal, spectrum & weights` : view}</h2>
+              <span className="eyebrow">주 캔버스 · <span className="data-kind simulated">시뮬레이션 · 정답을 앎</span></span>
+              <h2>{view === 'Channel detail' ? `${selectedChannelName} · 신호, 스펙트럼, 가중치` : VIEW_LABELS[view]}</h2>
               {view === 'Channel detail' && (
                 <div className="channel-switcher" role="group" aria-label="Simulated sensor channel">
                   {Array.from({ length: channelCount }, (_, index) => {
@@ -318,11 +380,11 @@ function App() {
               )}
             </div>
             <div className="view-tabs" role="tablist" aria-label="Visualization type">
-              {VIEWS.map((item) => <button key={item} role="tab" aria-selected={item === view} className={item === view ? 'active' : ''} onClick={() => setView(item)}>{item}</button>)}
+              {VIEWS.map((item) => <button key={item} role="tab" aria-selected={item === view} className={item === view ? 'active' : ''} title={item} onClick={() => setView(item)}>{VIEW_LABELS[item]}</button>)}
             </div>
             <div className="canvas-status">
-              <span>{result ? `RUN ${result.run_id.slice(-4).toUpperCase()}` : 'NO RUN'}</span>
-              {dirty && <em>Pending changes</em>}
+              <span>{result ? `RUN ${result.run_id.slice(-4).toUpperCase()}` : '실행 없음'}</span>
+              {dirty && <em>바뀐 설정 있음</em>}
             </div>
           </div>
 
@@ -330,58 +392,60 @@ function App() {
             {request.status === 'loading' && (
               <div className="run-overlay" role="status" aria-live="polite">
                 <div className="orbit"><Activity size={26} /></div>
-                <span className="eyebrow">Scientific pipeline</span>
+                <span className="eyebrow">분석 파이프라인</span>
                 <h3>{request.stage}</h3>
                 <div className="progress-track"><i style={{ width: `${request.progress}%` }} /></div>
-                <p>{request.progress}% · deterministic run · seed {recipe.simulation.seed}</p>
+                <p>{request.progress}% · 결정론적 실행 · seed {recipe.simulation.seed}</p>
               </div>
             )}
             {request.status === 'error' && (
               <div className="empty-stage error-stage">
                 <AlertTriangle size={30} />
-                <h3>Run stopped safely</h3>
+                <h3>실행을 안전하게 멈췄습니다</h3>
                 <p>{request.message}</p>
-                <p>Check the settings, then retry using the EEG generation button in the control panel.</p>
+                <p>설정을 확인한 뒤 왼쪽의 EEG 생성 버튼으로 다시 시도하세요.</p>
               </div>
             )}
             {!result && request.status !== 'loading' && request.status !== 'error' && (
               <div className="empty-stage">
                 <div className="empty-wave" aria-hidden="true"><Activity size={42} /></div>
-                <span className="eyebrow">Ready to experiment</span>
-                <h3>Generate EEG from your settings.</h3>
-                <p>Write your prediction, adjust the signal and filter controls, then select Generate EEG in the control panel.</p>
+                <span className="eyebrow">실험 준비 완료</span>
+                <h3>설정으로 EEG를 만들어 보세요.</h3>
+                <p>왼쪽에서 실험 과제를 하나 고르고 결과를 예측한 뒤 EEG 생성(Generate)을 누르세요.</p>
               </div>
             )}
             {result && request.status !== 'loading' && view === 'Channel detail' && selectedChannelDataAvailable && (
               <div className="channel-detail">
+                {showLookHere && activeExperiment && <LookHere>{activeExperiment.lookAt}</LookHere>}
                 <section className="channel-plot signal-plot">
                   <div className="plot-heading">
-                    <span><b>01</b><span><strong>Signal</strong><small>Voltage over time</small></span></span>
-                    <small>Raw mix → reference → 1–40 Hz filter</small>
+                    <span><b>01</b><span><strong>신호(Signal)</strong><small>시간에 따른 전압</small></span></span>
+                    <small className="layer-legend"><span className="before">처리 전</span><span className="after">처리 후</span><span className="removed">제거된 것</span></small>
                   </div>
                   <StackedEegComparison
                     x={result.traces.x}
                     series={{ [`Before · ${selectedChannelName}`]: selectedRawTrace, [`After · ${selectedChannelName}`]: selectedFilteredTrace }}
                     channelNames={[selectedChannelName]}
-                    beforeLabel="Raw EEG"
-                    afterLabel="Processed EEG"
+                    beforeLabel="처리 전 EEG (Raw)"
+                    afterLabel="처리 후 EEG (Processed)"
                     ariaLabel={`Raw and processed ${selectedChannelName} time series`}
                   />
+                  <RemovedSignalStrip x={result.traces.x} values={removedTrace} channelName={selectedChannelName} />
                 </section>
                 <section className="channel-plot spectrum-plot">
                   <div className="plot-heading">
-                    <span><b>02</b><span><strong>Spectrum</strong><small>Power at each frequency</small></span></span>
-                    <small>Welch PSD · this channel only</small>
+                    <span><b>02</b><span><strong>스펙트럼(Spectrum)</strong><small>주파수별 파워</small></span></span>
+                    <small>Welch PSD · 이 채널만</small>
                   </div>
                   <LineChart
                     x={result.spectrum.frequency_hz}
                     series={[
-                      { label: `Raw PSD · ${selectedChannelName}`, values: selectedRawPower, color: '#a8aaa5', dashed: true },
-                      { label: `Processed PSD · ${selectedChannelName}`, values: selectedFilteredPower, color: '#087f83' },
+                      { label: `처리 전 PSD · ${selectedChannelName}`, values: selectedRawPower, color: BEFORE_COLOR, dashed: true },
+                      { label: `처리 후 PSD · ${selectedChannelName}`, values: selectedFilteredPower, color: '#087f83' },
                     ]}
                     xDomain={[0, Math.min(80, result.recipe.simulation.sampling_rate_hz / 2)]}
-                    xLabel="Frequency (Hz)"
-                    yLabel="Power (log µV²/Hz)"
+                    xLabel="주파수(Hz)"
+                    yLabel="파워 (log µV²/Hz)"
                     ariaLabel={`Raw and processed ${selectedChannelName} Welch power spectral density`}
                     logY
                     markers={truthVisible ? result.truth_peaks_hz : []}
@@ -393,66 +457,70 @@ function App() {
             {result && request.status !== 'loading' && view === 'Channel detail' && !selectedChannelDataAvailable && (
               <div className="empty-stage stale-result-stage" role="status">
                 <AlertTriangle size={30} />
-                <span className="eyebrow">Incomplete run result</span>
-                <h3>{selectedChannelName} signal or spectrum is missing.</h3>
-                <p>Restart the local service, then select Regenerate EEG in the control panel to generate matching signal and spectrum data.</p>
+                <span className="eyebrow">불완전한 실행 결과</span>
+                <h3>{selectedChannelName}의 신호나 스펙트럼이 없습니다.</h3>
+                <p>로컬 분석 서버를 다시 시작한 뒤 왼쪽의 EEG 다시 생성을 눌러 신호와 스펙트럼을 함께 만드세요.</p>
               </div>
             )}
             {result && request.status !== 'loading' && view === 'Filter response' && (
+              <div className="filter-response-view">
+              {showLookHere && activeExperiment && <LookHere>{activeExperiment.lookAt}</LookHere>}
               <LineChart
                 x={result.filter_response.frequency_hz}
                 series={[{ label: filterResponseLabel(result.recipe), values: result.filter_response.gain_db, color: '#087f83' }]}
                 xDomain={[0, result.recipe.simulation.sampling_rate_hz / 2]}
-                xLabel="Frequency (Hz)"
-                yLabel="Gain (dB)"
+                xLabel="주파수(Hz)"
+                yLabel="이득(Gain, dB)"
                 yDomain={[-80, 5]}
                 ariaLabel="Actual digital filter response in decibels"
               />
+              </div>
             )}
           </div>
 
           <div className="channel-weight-readout" aria-label={`${selectedChannelName} source weights`}>
             <div className="weight-intro">
-              <span className="eyebrow">03 · Source weights</span>
+              <span className="eyebrow">03 · 원천 가중치(Source weights)</span>
               <strong>{selectedChannelName}</strong>
-              <small>Raw mix / {recipe.preprocessing.reference === 'average' ? 'after average reference' : 'no reference change'}</small>
+              <small>Raw 혼합 / {recipe.preprocessing.reference === 'average' ? '평균 기준 적용 후' : '재기준화 없음'}</small>
             </div>
             {recipe.simulation.sources.map((source, sourceIndex) => (
               <div className="weight-source" key={source.id}>
-                <span><i className={`source-dot ${source.id}`} />{source.label}</span>
+                <span><i className={`source-dot ${source.id}`} />{sourceLabel(source)}</span>
                 <strong>{source.frequency_hz} Hz</strong>
                 <dl>
                   <div><dt>Raw</dt><dd>{formatWeight(selectedMixingWeights[sourceIndex])}</dd></div>
-                  <div><dt>Processed</dt><dd>{formatWeight(selectedEffectiveWeights[sourceIndex])}</dd></div>
+                  <div><dt>처리 후</dt><dd>{formatWeight(selectedEffectiveWeights[sourceIndex])}</dd></div>
                 </dl>
               </div>
             ))}
-            <p className="weight-note">Weights describe the three known oscillations. The 1/f background is added afterward. A negative sign means phase inversion, not a bad channel.</p>
+            <p className="weight-note">가중치는 심어 둔 세 진동에 대한 값입니다. 1/f 배경은 그 뒤에 더해집니다. 음수는 위상 반전을 뜻하며 불량 채널이라는 뜻이 아닙니다.</p>
           </div>
         </section>
 
         <aside className="inspector-panel">
           <section className="inspector-lead">
-            <span className="eyebrow">Interpretation</span>
-            <h2>{result ? `Why ${selectedChannelName} looks this way` : 'Reason before reveal.'}</h2>
+            <span className="eyebrow">해석(Interpretation)</span>
+            <h2>{result ? `${selectedChannelName}가 이렇게 보이는 이유` : '공개하기 전에 추론하기'}</h2>
+            {truthVisible && peakSummary && <p className="result-sentence"><b>결과 한 문장</b> {peakSummary}</p>}
             <p>{result && dominantSource
-              ? `${dominantSource.label} (${dominantSource.frequency_hz} Hz) has the largest expected contribution to the processed trace: about ${dominantContribution?.toFixed(1)} µV before temporal filtering.`
-              : 'Generate EEG, then compare one channel’s signal, spectrum, and source weights together.'}</p>
+              ? `처리된 신호에 가장 크게 기여하는 원천은 ${sourceLabel(dominantSource)}(${dominantSource.frequency_hz} Hz)입니다. 시간 필터 전 기준으로 약 ${dominantContribution?.toFixed(1)} µV입니다.`
+              : 'EEG를 생성한 뒤 한 채널의 신호, 스펙트럼, 원천 가중치를 함께 비교하세요.'}</p>
           </section>
 
           {result && dominantSource && (
             <section className="channel-explanation">
               <div>
-                <strong>What the weight means</strong>
-                <p>The processed weight for {dominantSource.label.toLowerCase()} is {formatWeight(dominantEffectiveWeight)}. Larger magnitude means stronger influence; a negative value flips the waveform’s phase.</p>
+                <strong>가중치가 뜻하는 것</strong>
+                <p>{sourceLabel(dominantSource)}의 처리 후 가중치는 {formatWeight(dominantEffectiveWeight)}입니다. 절댓값이 클수록 영향이 크고, 음수이면 파형의 위상이 뒤집힙니다.</p>
               </div>
               <div>
-                <strong>Why Raw and Processed differ</strong>
-                <p>Raw uses the original mix. Processed first applies {recipe.preprocessing.reference === 'average' ? 'average reference, which changes every channel’s effective weights, and then' : 'no re-reference, then applies'} the temporal filters.</p>
+                <strong>Raw와 처리 후가 다른 이유</strong>
+                <p>Raw는 원래 혼합 그대로입니다. 처리 후는 {recipe.preprocessing.reference === 'average' ? '먼저 평균 기준을 적용해 모든 채널의 유효 가중치를 바꾼 다음' : '재기준화 없이'} 시간 필터를 적용한 결과입니다.</p>
               </div>
               <div>
-                <strong>Why it may look too regular</strong>
-                <p>This teaching signal now includes 1/f-like background activity and a slowly changing, burst-like alpha envelope. It is more EEG-like, but still simpler than a recording and omits eye, muscle, movement, and electrode artifacts.</p>
+                <strong>너무 규칙적으로 보이는 이유</strong>
+                <p>이 교육용 신호에는 1/f 형태의 배경 활동과 천천히 변하는 알파 burst 포락선이 들어 있습니다. EEG에 가깝지만 실제 기록보다 단순하며 눈, 근육, 움직임, 전극 아티팩트는 없습니다.</p>
               </div>
             </section>
           )}
@@ -467,32 +535,34 @@ function App() {
 
           <section className={`truth-block ${truthVisible ? 'revealed' : ''}`}>
             <div className="truth-heading">
-              <span><EyeOff size={16} /> Simulation truth</span>
-              <span className="truth-state">{truthVisible ? 'REVEALED' : 'HIDDEN'}</span>
+              <span><EyeOff size={16} /> 시뮬레이션 정답(Truth)</span>
+              <span className="truth-state">{truthVisible ? '공개됨' : '숨김'}</span>
             </div>
             {truthVisible && result ? (
               <div className="truth-content">
                 <div className="truth-peaks">
                   {result.truth_peaks_hz.map((peak) => <span key={peak}><strong>{peak}</strong> Hz</span>)}
                 </div>
-                <p>The 10 Hz alpha source sits inside the passband. The 60 Hz source is strongly attenuated by the 40 Hz low-pass. At 100 Hz sampling, 60 Hz folds to 40 Hz before filtering.</p>
+                {answeredFor && <PredictionFeedback prediction={answeredPrediction} answer={answeredFor.answer} reason={answeredFor.reason} graded={predictionGraded} />}
+                {answeredExperiment && predictionGraded && <p className="experiment-learn"><b>배우는 것</b> {answeredExperiment.learn}</p>}
+                <p>10 Hz 알파 원천은 통과대역 안에 있습니다. 60 Hz 원천은 40 Hz 저역 통과에서 크게 줄어듭니다. 100 Hz로 표본화하면 60 Hz는 필터링 전에 이미 40 Hz로 접힙니다.</p>
               </div>
             ) : (
               <div className="truth-covered">
                 <div className="blur-lines"><i /><i /><i /></div>
-                <button className="reveal-button" disabled={!result} onClick={revealTruth}><Eye size={16} /> Reveal after prediction</button>
+                <button className="reveal-button" disabled={!result} onClick={revealTruth}><Eye size={16} /> 예측과 대조하기(Reveal)</button>
               </div>
             )}
           </section>
 
-          <div className="nonclinical"><AlertTriangle size={15} /><span>Educational and research use only.<br />Not for clinical diagnosis.</span></div>
+          <div className="nonclinical"><AlertTriangle size={15} /><span>교육·연구용입니다.<br />임상 진단에 쓰지 마세요.</span></div>
         </aside>
       </main>
 
       <footer className="run-strip">
-        <div className="run-strip-title"><History size={16} /><span>Run history</span><small>{runs.length} local</small></div>
+        <div className="run-strip-title"><History size={16} /><span>실행 기록(Run history)</span><small>로컬 {runs.length}개</small></div>
         <div className="run-list">
-          {!runs.length && <span className="no-runs">Completed runs will appear here for A/B comparison.</span>}
+          {!runs.length && <span className="no-runs">마친 실행이 여기에 쌓여 A/B 비교에 쓰입니다.</span>}
           {runs.map((item, index) => (
             <button
               key={item.run_id}
@@ -501,13 +571,13 @@ function App() {
             >
               <span>RUN {String(runs.length - index).padStart(2, '0')}</span>
               <strong>{item.recipe.simulation.sampling_rate_hz} Hz · {item.recipe.preprocessing.lowpass_hz} Hz LP</strong>
-              <small>{baseline?.run_id === item.run_id ? 'PINNED BASELINE' : item.provenance.recipe_hash}</small>
+              <small>{baseline?.run_id === item.run_id ? '고정한 기준 실행' : item.provenance.recipe_hash}</small>
             </button>
           ))}
         </div>
         <div className="strip-actions">
-          <button onClick={() => result && setBaseline(result)} disabled={!result}><Save size={15} /> Pin baseline</button>
-          <button onClick={() => { setRecipe(cloneRecipe(defaultRecipe)) }}><RotateCcw size={15} /> Reset draft</button>
+          <button onClick={() => result && setBaseline(result)} disabled={!result}><Save size={15} /> 기준 실행 고정(Pin)</button>
+          <button onClick={() => selectExperiment(activeExperimentId)}><RotateCcw size={15} /> 설정 되돌리기</button>
         </div>
         </footer>
       </>}
@@ -515,8 +585,33 @@ function App() {
   )
 }
 
+const BEFORE_COLOR = '#9a9d97'
+const REMOVED_COLOR = '#c7653c'
+
+/** The third layer of the before/after/removed rule: what processing took out, always in rust. */
+function RemovedSignalStrip({ x, values, channelName }: { x: number[]; values: number[]; channelName: string }) {
+  const peak = values.reduce((max, value) => Math.max(max, Math.abs(value)), 0)
+  return (
+    <div className="removed-strip">
+      <div className="removed-strip-heading">
+        <span><i aria-hidden="true" />제거된 것 = 처리 전 − 처리 후</span>
+        <small>최대 {peak.toFixed(1)} µV</small>
+      </div>
+      <LineChart
+        x={x}
+        series={[{ label: `제거된 신호 · ${channelName}`, values, color: REMOVED_COLOR }]}
+        xLabel="시간(s)"
+        yLabel="µV"
+        ariaLabel={`Signal removed from ${channelName} by processing`}
+        height={120}
+      />
+    </div>
+  )
+}
+
 interface RangeControlProps {
   label: string
+  ariaLabel: string
   value: number
   min: number
   max: number
@@ -532,21 +627,21 @@ function filterResponseLabel(recipe: ExperimentRecipe): string {
   const highpass = applied(recipe.preprocessing.highpass_hz)
   const lowpass = applied(recipe.preprocessing.lowpass_hz)
   const notch = applied(recipe.preprocessing.notch_hz)
-  const passband = highpass !== null && lowpass !== null ? `${highpass}–${lowpass} Hz band-pass`
-    : highpass !== null ? `${highpass} Hz high-pass`
-      : lowpass !== null ? `${lowpass} Hz low-pass` : null
-  const stages = [passband, notch !== null ? `${notch} Hz notch` : null].filter((stage) => stage !== null)
-  return stages.length ? `${stages.join(' + ')} · zero-phase gain` : 'No filter applied'
+  const passband = highpass !== null && lowpass !== null ? `${highpass}–${lowpass} Hz 대역 통과(band-pass)`
+    : highpass !== null ? `${highpass} Hz 고역 통과`
+      : lowpass !== null ? `${lowpass} Hz 저역 통과` : null
+  const stages = [passband, notch !== null ? `${notch} Hz 노치` : null].filter((stage) => stage !== null)
+  return stages.length ? `${stages.join(' + ')} · 영위상 이득` : '적용된 필터 없음'
 }
 
-function RangeControl({ label, help, value, min, max, step, unit, onChange }: RangeControlProps & { help: string }) {
+function RangeControl({ label, ariaLabel, help, value, min, max, step, unit, onChange }: RangeControlProps & { help: string }) {
   const progress = ((value - min) / (max - min)) * 100
   return (
     <label className="range-control">
       <span><span className="control-label">{label}<ControlHint>{help}</ControlHint></span><output>{value} {unit}</output></span>
       <input
         type="range"
-        aria-label={label}
+        aria-label={ariaLabel}
         min={min}
         max={max}
         step={step}

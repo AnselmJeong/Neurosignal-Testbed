@@ -65,6 +65,6 @@ it('shows signed B minus A values with a separate symmetric scale', () => {
   render(<ConnectivityDifference a={matrix} b={b} />)
   expect(screen.getByRole('img', { name: /fixed scale minus 1 to plus 1/ })).toBeVisible()
   expect(screen.getByTitle('Frontal L – Frontal R: B − A = -0.360')).toHaveTextContent('-0.36')
-  expect(screen.getByText('−1 · decreased')).toBeVisible()
-  expect(screen.getByText('+1 · increased')).toBeVisible()
+  expect(screen.getByText('−1 · 감소')).toBeVisible()
+  expect(screen.getByText('+1 · 증가')).toBeVisible()
 })

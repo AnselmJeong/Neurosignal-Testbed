@@ -174,22 +174,22 @@ def run_qeeg_analysis(
         WarningMessage(
             code="qeeg_descriptive_not_normative",
             severity="warning",
-            title="QEEG metrics are descriptive, not a diagnosis",
+            title="QEEG 지표는 기술적일 뿐 진단이 아닙니다",
             explanation=(
-                "Band power, ratios, coherence, and PLV describe this recording under the "
-                "selected preprocessing recipe. They are not compared with a normative database."
+                "대역 파워, 비율, 코히어런스, PLV는 선택한 전처리 설정에서 이 기록을 기술합니다. "
+                "규준 데이터베이스와 비교한 값이 아닙니다."
             ),
-            suggestion="Interpret them with task, age, state, montage, and recording context.",
+            suggestion="과제, 나이, 상태, 몽타주, 기록 맥락과 함께 해석하세요.",
         ),
         WarningMessage(
             code="connectivity_not_causality_real_data",
             severity="info",
-            title="Coherence and PLV are not causal connections",
+            title="코히어런스와 PLV는 인과적 연결이 아닙니다",
             explanation=(
-                "Sensor mixing, reference choice, common sources, and volume conduction can "
-                "inflate sensor-level connectivity."
+                "센서 혼합, 기준전극 선택, 공통 원천, 볼륨 전도가 센서 수준 연결성을 "
+                "부풀릴 수 있습니다."
             ),
-            suggestion="Compare references and lag-sensitive metrics before making network claims.",
+            suggestion="네트워크에 대해 말하기 전에 기준전극과 위상 지연에 민감한 지표를 비교하세요.",
         ),
     ]
 
@@ -199,12 +199,12 @@ def run_qeeg_analysis(
             WarningMessage(
                 code="qeeg_topomap_unavailable",
                 severity="warning",
-                title="Topomaps are unavailable without verified sensor positions",
+                title="확인된 센서 위치가 없어 지형도를 그릴 수 없습니다",
                 explanation=(
-                    "The working copy does not contain usable positions for every EEG channel."
+                    "작업 사본에 모든 EEG 채널의 쓸 수 있는 위치가 없습니다."
                 ),
                 suggestion=(
-                    "Attach the correct acquisition montage, then import the recording again."
+                    "기록에 쓴 몽타주를 붙인 뒤 기록을 다시 가져오세요."
                 ),
             )
         )
@@ -237,13 +237,12 @@ def run_qeeg_analysis(
                 WarningMessage(
                     code="ica_did_not_converge",
                     severity="warning",
-                    title="ICA did not converge",
+                    title="ICA가 수렴하지 않았습니다",
                     explanation=(
-                        "The optimizer reached its iteration limit, so the displayed component "
-                        "separation may be unstable."
+                        "최적화가 반복 한도에 닿아서 표시된 성분 분리가 불안정할 수 있습니다."
                     ),
                     suggestion=(
-                        "Try a different method or component count before excluding components."
+                        "성분을 빼기 전에 다른 방법이나 성분 수를 시도하세요."
                     ),
                 )
             )
@@ -258,12 +257,12 @@ def run_qeeg_analysis(
             WarningMessage(
                 code="ica_manual_review_required",
                 severity="warning",
-                title="ICA exclusions require human review",
+                title="ICA 성분 제외는 사람이 검토해야 합니다",
                 explanation=(
-                    "Component order and topography are data-specific. NeuroSignal never treats a "
-                    "component index as universally artifactual."
+                    "성분의 순서와 지형도는 자료마다 다릅니다. NeuroSignal은 특정 성분 번호를 "
+                    "언제나 아티팩트로 취급하지 않습니다."
                 ),
-                suggestion="Inspect component maps, spectra, traces, and known artifact channels.",
+                suggestion="성분 지도, 스펙트럼, 파형, 알려진 아티팩트 채널을 살펴보세요.",
             )
         )
 
@@ -338,12 +337,12 @@ def run_qeeg_analysis(
             WarningMessage(
                 code="connectivity_channel_subset",
                 severity="info",
-                title="Connectivity view uses a channel subset",
+                title="연결성 보기는 채널 일부만 씁니다",
                 explanation=(
-                    f"The matrix uses the first {len(connectivity_names)} non-bad EEG channels "
-                    f"of {len(eeg_names)} to keep the review legible."
+                    f"읽기 쉽도록 EEG 채널 {len(eeg_names)}개 중 bad가 아닌 처음 "
+                    f"{len(connectivity_names)}개만 행렬에 씁니다."
                 ),
-                suggestion="Export the result JSON for the exact channel list.",
+                suggestion="정확한 채널 목록은 결과 JSON을 내보내 확인하세요.",
             )
         )
     coherence = _connectivity(epochs, connectivity_names, "coh", request.connectivity_band)
