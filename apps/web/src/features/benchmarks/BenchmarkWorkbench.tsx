@@ -251,7 +251,7 @@ export function BenchmarkWorkbench({ activeLab, onLabChange, pollIntervalMs = 15
       <section className="canvas-panel jrb-canvas">
         <div className="canvas-toolbar">
           <div>
-            <span className="eyebrow">{tab === 'results' ? '표시 중인 결과' : '보조 탭'}</span>
+            <span className="eyebrow"><span className="data-kind simulated">시뮬레이션 · 정답을 앎</span> {tab === 'results' ? '표시 중인 결과' : '보조 탭'}</span>
             <h2>{tab === 'results' ? (displayed ? `${displayed.preset} · ${displayed.profile} · seed ${displayed.seeds.length}개` : '아직 결과 없음') : '지표 카탈로그'}</h2>
           </div>
           <div className="view-tabs" role="tablist" aria-label="JR Benchmark 보기">

@@ -759,3 +759,34 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .preview-note b { display: block; color: var(--accent-dark); font-size: 11px; }
 .preview-note.locked { border-color: var(--line-strong); color: #6b726c; }
 .canvas-status .preview-badge { padding: 2px 6px; border: 1px dashed var(--accent); color: var(--accent-dark); background: rgba(8,127,131,.06); font: 600 8.5px var(--mono); letter-spacing: .04em; }
+
+/* Start screen (P0-6), lab limits (P0-7), method cards (P0-5) */
+.start-screen { min-height: 0; overflow: auto; padding: 48px max(32px, 8vw) 40px; background: var(--paper); }
+.start-intro { max-width: 720px; }
+.start-intro .eyebrow { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-dark); }
+.start-intro h1 { margin: 10px 0 12px; font-size: 34px; line-height: 1.15; letter-spacing: -.01em; }
+.start-intro p { margin: 0; color: #4e5650; font-size: 15px; line-height: 1.65; }
+.start-questions { list-style: none; margin: 30px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; max-width: 1080px; }
+.start-questions button { width: 100%; height: 100%; position: relative; display: grid; gap: 7px; align-content: start; padding: 16px 44px 16px 16px; border: 1px solid var(--line-strong); background: #fff; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.start-questions button:hover { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.start-questions button > svg { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--accent); }
+.start-question-lab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 500 10px var(--mono); color: #6b726c; letter-spacing: .03em; }
+.start-question-lab em { font-style: normal; }
+.start-questions strong { font-size: 17px; line-height: 1.35; color: var(--ink); }
+.start-questions small { color: #5d655f; font-size: 12.5px; line-height: 1.5; }
+.start-footnote { max-width: 720px; margin: 22px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.lab-start-button { border-bottom: 1px dashed rgba(255,255,255,.18) !important; margin-bottom: 4px; }
+.lab-limits { margin-top: 10px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 8px; }
+.lab-limits summary { cursor: pointer; color: #e3c7b5; font-size: 11px; font-weight: 650; }
+.lab-limits ul { margin: 7px 0 0; padding-left: 15px; color: #c6ccc6; font-size: 11px; line-height: 1.5; }
+.lab-limits li + li { margin-top: 5px; }
+.method-card { margin: 8px 0 10px; border: 1px solid var(--line-strong); background: #fff; }
+.method-card header { display: grid; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--stone); }
+.method-card header strong { font-size: 12.5px; }
+.method-card header small { color: var(--accent-dark); font-size: 10.5px; }
+.method-card dl { margin: 0; padding: 4px 10px 8px; }
+.method-card dl > div { display: grid; grid-template-columns: 54px 1fr; gap: 6px; padding: 5px 0; border-bottom: 1px dotted var(--line); }
+.method-card dl > div:last-child { border-bottom: 0; }
+.method-card dt { color: #6b726c; font-size: 10.5px; font-weight: 650; }
+.method-card dd { margin: 0; font-size: 11.5px; line-height: 1.45; color: #2f3531; }
+.method-card .breaks dt { color: #9c4a29; }

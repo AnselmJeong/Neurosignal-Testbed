@@ -271,7 +271,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
         <section className="canvas-panel ica-canvas">
           <div className="canvas-toolbar ica-toolbar">
             <div>
-              <span className="eyebrow">{isComparison ? '복원 비교' : fit ? '성분 작업대' : simulation ? '생성한 입력' : 'ICA 실습'}</span>
+              <span className="eyebrow"><span className="data-kind simulated">시뮬레이션 · 정답을 앎</span> {isComparison ? '복원 비교' : fit ? '성분 작업대' : simulation ? '생성한 입력' : 'ICA 실습'}</span>
               <h2>{comparisonNeedsRefresh ? '처리 전 / 후 · 다시 만들어야 함' : isComparison ? '정리한 EEG · 8채널 처리 전 / 후' : component ? `IC ${String(component.index + 1).padStart(2, '0')} · 제외 전에 살펴보기` : simulation ? '시뮬레이션 EEG · ICA 전에 살펴보기' : '먼저 EEG를 생성하세요'}</h2>
             </div>
             {fit && <div className="view-tabs" role="tablist" aria-label="ICA visualization type">

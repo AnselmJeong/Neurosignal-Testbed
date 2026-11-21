@@ -1,8 +1,10 @@
+import { LAB_LIMITS } from '../lessons/labGuide'
 import {
   Activity,
   Brain,
   BrainCircuit,
   Check,
+  Compass,
   CircleHelp,
   FlaskConical,
   HardDrive,
@@ -13,7 +15,8 @@ import {
   Workflow,
 } from 'lucide-react'
 
-export type LabId = 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
+export type LabId = 'start' | 'filter' | 'ica' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
+export type LabKey = Exclude<LabId, 'start'>
 
 export interface LabStep {
   label: string
@@ -21,7 +24,7 @@ export interface LabStep {
   icon: LucideIcon
 }
 
-const LABS: Record<LabId, { number: string; label: string; english: string; title: string; objective: string; minutes: string; icon: LucideIcon }> = {
+export const LABS: Record<LabKey, { number: string; label: string; english: string; title: string; objective: string; minutes: string; icon: LucideIcon }> = {
   filter: {
     number: '01', label: '표본화', english: 'Sampling', title: '센서를 거치면 무엇이 남는가?',
     objective: '2, 10, 60 Hz를 심은 신호에서 표본화와 필터가 무엇을 바꾸는지 예측하고 확인합니다.', minutes: '8분', icon: Activity,
@@ -62,14 +65,19 @@ export function LabNavigator({ activeLab, onLabChange, steps, step }: {
   steps: readonly LabStep[]
   step: number
 }) {
-  const lab = LABS[activeLab]
+  const labKey: LabKey = activeLab === 'start' ? 'filter' : activeLab
+  const lab = LABS[labKey]
+  const limits = LAB_LIMITS[labKey]
 
   return (
     <nav className="lab-navigation" aria-label="Lab과 학습 단계">
       <section className="lab-list" aria-label="Lab 목록">
         <span className="eyebrow">Labs</span>
         <div>
-          {(Object.entries(LABS) as [LabId, typeof lab][]).map(([id, item]) => {
+          <button className="lab-start-button" onClick={() => onLabChange('start')} title="무엇이 궁금한가 · 질문으로 Lab 고르기">
+            <small>시작</small><Compass size={16} /><span>질문</span>
+          </button>
+          {(Object.entries(LABS) as [LabKey, typeof lab][]).map(([id, item]) => {
             const Icon = item.icon
             return (
               <button key={id} className={id === activeLab ? 'active' : ''} onClick={() => onLabChange(id)} title={`Lab ${item.number} · ${item.english}`} aria-current={id === activeLab ? 'page' : undefined}>
@@ -85,6 +93,10 @@ export function LabNavigator({ activeLab, onLabChange, steps, step }: {
           <span className="eyebrow">Lab {lab.number} · {lab.english} · 학습 목표</span>
           <h2>{lab.title}</h2>
           <p>{lab.objective}</p>
+          <details className="lab-limits">
+            <summary>이 Lab이 말해 주지 못하는 것</summary>
+            <ul>{limits.limits.map((item) => <li key={item}>{item}</li>)}</ul>
+          </details>
         </div>
         <div className="lesson-progress-heading">
           <span>학습 진행</span>

@@ -5,6 +5,8 @@ import { runConnectivity, simulateConnectivity } from '../lib/api'
 import { defaultConnectivityRecipe, type ConnectivityMetric, type ConnectivityRecipe, type ConnectivityResult, type ConnectivitySimulation, type ConnectivitySpace } from '../types'
 import { LabNavigator, type LabId } from './LabNavigator'
 import { StackedEegBrowser } from './StackedEegBrowser'
+import { CONNECTIVITY_METHOD_CARDS } from '../lessons/labGuide'
+import { MethodCard } from './LessonPanels'
 import { ComparisonReadout, ConnectivityDiagnostics, EstimatePanel, GeneratingNetwork, METRIC_GUIDE, RecipeSummary } from './ConnectivityLessonViews'
 import './connectivity-lesson.css'
 
@@ -138,7 +140,7 @@ export function ConnectivityWorkbench({ activeLab, onLabChange }: { activeLab: L
           <section className="control-section">
             <div className="section-title"><span>3 · 측정</span></div>
             <label className="conn-select">연결성 지표(Metric)<select aria-label="Connectivity metric" value={recipe.metric} onChange={e => void updateMeasurement('metric', e.target.value as ConnectivityMetric)}>{METRICS.map(metric => <option key={metric} value={metric}>{METRIC_GUIDE[metric].label}</option>)}</select></label>
-            <p className="conn-control-help">{METRIC_GUIDE[recipe.metric].explanation}</p><p className="conn-control-help">A와 B가 함께 씁니다. 지표를 바꾸면 저장된 두 조건을 같은 EEG에서 다시 추정하므로 EEG를 새로 만들 필요가 없습니다.</p>
+            <MethodCard card={CONNECTIVITY_METHOD_CARDS[recipe.metric]} /><p className="conn-control-help">A와 B가 함께 씁니다. 지표를 바꾸면 저장된 두 조건을 같은 EEG에서 다시 추정하므로 EEG를 새로 만들 필요가 없습니다.</p>
           </section>
           <details className="conn-advanced"><summary><SlidersHorizontal size={14} /> 신호와 추정의 세부 설정</summary>
             <Range label="알파 주파수(Alpha frequency)" ariaLabel="Alpha frequency" value={recipe.alpha_frequency_hz} min={8} max={12} step={0.5} unit=" Hz" onChange={v => update('alpha_frequency_hz', v)} />
