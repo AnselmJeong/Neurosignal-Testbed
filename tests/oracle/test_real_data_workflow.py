@@ -88,7 +88,7 @@ def test_eegbci_lesson_reports_missing_cache_without_downloading(tmp_path: Path)
 
     assert status.state == "not_cached"
     assert status.available_runs == []
-    assert "never started automatically" in status.message
+    assert "자동으로 시작하지 않습니다" in status.message
 
 
 def test_qeeg_run_writes_derivatives_and_preserves_working_copy(tmp_path: Path) -> None:

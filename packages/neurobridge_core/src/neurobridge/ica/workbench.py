@@ -218,12 +218,12 @@ def _label_components(
             WarningMessage(
                 code="icalabel_prerequisites",
                 severity="info",
-                title="ICLabel suggestion withheld",
+                title="ICLabel 제안을 보류했습니다",
                 explanation=(
-                    "ICLabel is calibrated for extended Infomax on average-referenced EEG. "
-                    "Manual component inspection remains available."
+                    "ICLabel은 평균 기준 EEG에 extended Infomax를 쓴 경우에 맞춰져 있습니다. "
+                    "성분을 직접 살펴보는 것은 그대로 할 수 있습니다."
                 ),
-                suggestion="Use extended Infomax with average reference for an advisory label.",
+                suggestion="참고 라벨을 보려면 평균 기준과 extended Infomax를 쓰세요.",
             )
         )
         count = fitted.component_sources.shape[0]
@@ -244,12 +244,11 @@ def _label_components(
             WarningMessage(
                 code="icalabel_unavailable",
                 severity="info",
-                title="ICLabel is not installed",
+                title="ICLabel이 설치되어 있지 않습니다",
                 explanation=(
-                    "Automatic labels are optional; component removal still requires "
-                    "manual selection."
+                    "자동 라벨은 선택 사항입니다. 성분 제거는 어차피 직접 골라야 합니다."
                 ),
-                suggestion="Install the project's ica dependency group to enable advisory labels.",
+                suggestion="참고 라벨을 쓰려면 프로젝트의 ica 의존성 그룹을 설치하세요.",
             )
         )
         return ["unavailable"] * count, [0.0] * count, False, warnings
@@ -417,11 +416,11 @@ def apply_ica_exclusions(request: IcaApplyRequest) -> IcaApplyResult:
             WarningMessage(
                 code="no_components_excluded",
                 severity="info",
-                title="No component was removed",
+                title="제거한 성분이 없습니다",
                 explanation=(
-                    "The output is unchanged because ICA suggestions never auto-delete data."
+                    "ICA 제안은 자료를 자동으로 지우지 않으므로 출력은 그대로입니다."
                 ),
-                suggestion="Inspect a component and select it explicitly before applying.",
+                suggestion="성분을 살펴보고 직접 고른 뒤 적용하세요.",
             )
         )
     return IcaApplyResult(

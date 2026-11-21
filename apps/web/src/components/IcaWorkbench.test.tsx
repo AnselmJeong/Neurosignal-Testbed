@@ -84,19 +84,19 @@ describe('IcaWorkbench flow', () => {
   it('requires generated EEG before ICA fit and has no duplicate fit action', async () => {
     render(<IcaWorkbench activeLab="ica" onLabChange={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: 'Fit ICA on generated EEG' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '생성한 EEG에 ICA 적합(Fit ICA)' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: /Fit default decomposition/i })).not.toBeInTheDocument()
-    expect(screen.getByText('Start with the EEG you will clean.')).toBeVisible()
-    expect(screen.getByText('Follow the signal through four steps.')).toBeVisible()
+    expect(screen.getByText('정리할 EEG부터 만듭니다.')).toBeVisible()
+    expect(screen.getByText('네 단계로 신호를 따라갑니다.')).toBeVisible()
     expect(screen.queryByText(/NOW/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate simulated EEG' }))
+    fireEvent.click(screen.getByRole('button', { name: '시뮬레이션 EEG 생성(Generate)' }))
 
-    expect(await screen.findByText('Simulated EEG · inspect before ICA')).toBeVisible()
+    expect(await screen.findByText('시뮬레이션 EEG · ICA 전에 살펴보기')).toBeVisible()
     expect(await screen.findByRole('img', { name: 'Eight-channel simulated contaminated EEG browser' })).toBeVisible()
-    expect(screen.getByText('8 channels · shared gain')).toBeVisible()
+    expect(screen.getByText('8채널 · 공통 이득')).toBeVisible()
     expect(simulateIcaMock).toHaveBeenCalledWith(defaultIcaRecipe)
-    expect(screen.getByRole('button', { name: 'Fit ICA on generated EEG' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '생성한 EEG에 ICA 적합(Fit ICA)' })).toBeEnabled()
   })
 
   it('keeps ICA activation in arbitrary units', async () => {
@@ -108,16 +108,16 @@ describe('IcaWorkbench flow', () => {
   it('shows an unmatched residual instead of a blink truth in the no-artifact control', async () => {
     render(<IcaWorkbench activeLab="ica" onLabChange={vi.fn()} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'No-artifact control' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Generate simulated EEG' }))
-    expect(await screen.findByText('PLANTED ARTIFACT')).toBeVisible()
-    expect(screen.getByText('none')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: '아티팩트 없는 대조군' }))
+    fireEvent.click(screen.getByRole('button', { name: '시뮬레이션 EEG 생성(Generate)' }))
+    expect(await screen.findByText('심어 둔 아티팩트')).toBeVisible()
+    expect(screen.getByText('없음', { selector: '.simulation-summary span' })).toBeVisible()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fit ICA on generated EEG' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Reveal source identity' }))
+    fireEvent.click(screen.getByRole('button', { name: '생성한 EEG에 ICA 적합(Fit ICA)' }))
+    fireEvent.click(await screen.findByRole('button', { name: '원천 정체 공개(Reveal)' }))
 
-    expect(await screen.findByText('No planted source')).toBeVisible()
-    expect(screen.getByText(/residual sensor noise or decomposition remainder/i)).toBeVisible()
+    expect(await screen.findByText('심어 둔 원천 없음')).toBeVisible()
+    expect(screen.getByText(/남은 센서 잡음이나 분해 잔여분/)).toBeVisible()
     expect(screen.queryByText(/blink · r 0\.00/i)).not.toBeInTheDocument()
     expect(fitIcaMock).toHaveBeenCalledWith(expect.objectContaining({ blink_amplitude_uv: 0 }))
   })
@@ -141,8 +141,8 @@ describe('IcaWorkbench flow', () => {
     const comparison = await screen.findByRole('img', { name: 'Eight-channel comparison test' })
     expect(comparison).toBeVisible()
     channelNames.forEach((channel) => expect(within(comparison).getByText(channel)).toBeVisible())
-    expect(screen.getByText('Before · generated EEG')).toBeVisible()
-    expect(screen.getByText('After · cleaned EEG')).toBeVisible()
+    expect(screen.getByText('처리 전 · 생성한 EEG')).toBeVisible()
+    expect(screen.getByText('처리 후 · 정리한 EEG')).toBeVisible()
     expect(screen.getByText('LOCKED SCALE')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Increase amplitude gain' }))
     expect(screen.getByText(/EEG ±1.*µV.*2×/)).toBeVisible()

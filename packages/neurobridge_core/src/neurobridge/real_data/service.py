@@ -111,22 +111,22 @@ def _inspection_warnings(raw: mne.io.BaseRaw) -> list[WarningMessage]:
         WarningMessage(
             code="real_data_no_reference_score",
             severity="info",
-            title="No simulated reference score",
+            title="시뮬레이션 정답 점수가 없습니다",
             explanation=(
-                "This recording is analyzed as observed data. Quality checks describe the file "
-                "and processing choices rather than scoring recovery against a planted signal."
+                "이 기록은 관찰된 자료 그대로 분석합니다. 품질 점검은 심어 둔 신호에 비춘 "
+                "복원 점수가 아니라 파일과 처리 선택을 기술합니다."
             ),
-            suggestion="Use QC, provenance, and sensitivity checks when deciding what to retain.",
+            suggestion="무엇을 남길지 정할 때 QC, 출처 기록, 민감도 점검을 쓰세요.",
         ),
         WarningMessage(
             code="local_data_privacy",
             severity="warning",
-            title="Keep identifiers local",
+            title="식별 정보는 로컬에 두세요",
             explanation=(
-                "Recording metadata or file names can contain identifying information. "
-                "NeuroSignal stores the working copy and report only in the selected local project."
+                "기록 메타데이터나 파일 이름에 개인을 식별할 정보가 있을 수 있습니다. "
+                "NeuroSignal은 작업 사본과 보고서를 선택한 로컬 프로젝트에만 저장합니다."
             ),
-            suggestion="Review filenames and metadata before sharing an exported report.",
+            suggestion="내보낸 보고서를 공유하기 전에 파일 이름과 메타데이터를 확인하세요.",
         ),
     ]
     if not raw.info.get("dig"):
@@ -134,10 +134,10 @@ def _inspection_warnings(raw: mne.io.BaseRaw) -> list[WarningMessage]:
             WarningMessage(
                 code="montage_missing",
                 severity="warning",
-                title="No digitization or montage is attached",
-                explanation="Sensor positions cannot be verified from this file alone.",
+                title="전극 좌표(digitization)나 몽타주가 없습니다",
+                explanation="이 파일만으로는 센서 위치를 확인할 수 없습니다.",
                 suggestion=(
-                    "Attach a justified montage before topographic or source-space analysis."
+                    "지형도나 원천 공간 분석 전에 근거 있는 몽타주를 붙이세요."
                 ),
             )
         )
@@ -146,11 +146,11 @@ def _inspection_warnings(raw: mne.io.BaseRaw) -> list[WarningMessage]:
             WarningMessage(
                 code="annotations_absent",
                 severity="info",
-                title="No annotations found",
+                title="주석(annotation)이 없습니다",
                 explanation=(
-                    "No event or artifact annotations were present in the imported recording."
+                    "가져온 기록에 사건이나 아티팩트 주석이 없습니다."
                 ),
-                suggestion="Add reviewed annotations before condition-locked analyses.",
+                suggestion="조건별 분석 전에 검토한 주석을 추가하세요.",
             )
         )
     return warnings
@@ -217,12 +217,12 @@ def _qc(raw: mne.io.BaseRaw) -> RealDataQcSummary:
         WarningMessage(
             code="qc_descriptive_not_diagnostic",
             severity="info",
-            title="QC is descriptive",
+            title="QC는 기술적일 뿐입니다",
             explanation=(
-                "Flat channels, annotations, and alpha-band power are file-quality observations; "
-                "they are not a diagnostic interpretation."
+                "평평한 채널, 주석, 알파 대역 파워는 파일 품질에 대한 관찰이며 "
+                "진단적 해석이 아닙니다."
             ),
-            suggestion="Review raw traces, context, and acquisition notes before excluding data.",
+            suggestion="자료를 빼기 전에 원신호, 맥락, 기록 노트를 검토하세요.",
         )
     ]
     if flat_channels:
@@ -230,12 +230,11 @@ def _qc(raw: mne.io.BaseRaw) -> RealDataQcSummary:
             WarningMessage(
                 code="flat_channels_detected",
                 severity="warning",
-                title="Potentially flat EEG channels",
+                title="평평할 수 있는 EEG 채널",
                 explanation=(
-                    f"{len(flat_channels)} channel(s) have near-zero variation in the first "
-                    "two minutes."
+                    f"채널 {len(flat_channels)}개가 처음 2분 동안 거의 변하지 않습니다."
                 ),
-                suggestion="Inspect the channels before marking them bad or excluding them.",
+                suggestion="bad로 표시하거나 빼기 전에 해당 채널을 살펴보세요.",
             )
         )
     return RealDataQcSummary(
@@ -424,8 +423,8 @@ def eegbci_lesson_status(cache_directory: str | None = None) -> EegbciLessonStat
             cache_directory=str(root),
             available_runs=runs,
             message=(
-                "EEGBCI subject 1 eyes-open and eyes-closed runs are cached locally. "
-                "The lesson can be used offline."
+                "EEGBCI 피험자 1의 눈 뜬 기록과 눈 감은 기록이 로컬에 저장되어 있어 "
+                "오프라인으로 실습할 수 있습니다."
             ),
         )
     return EegbciLessonStatus(
@@ -433,8 +432,8 @@ def eegbci_lesson_status(cache_directory: str | None = None) -> EegbciLessonStat
         cache_directory=str(root),
         available_runs=runs,
         message=(
-            "EEGBCI eyes-open/eyes-closed files are not both cached. Acquisition is never "
-            "started automatically; download them once before using the offline lesson."
+            "EEGBCI 눈 뜬/눈 감은 파일이 모두 저장되어 있지는 않습니다. 다운로드는 자동으로 "
+            "시작하지 않습니다. 오프라인 실습 전에 한 번 내려받으세요."
         ),
     )
 

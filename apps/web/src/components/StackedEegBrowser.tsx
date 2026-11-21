@@ -35,7 +35,7 @@ export function StackedEegBrowser({ x, series: seriesProp, ariaLabel, unit = 'µ
   const series = useShallowStable(seriesProp)
   const layers = useMemo(() => [{
     id: 'signal',
-    label: unit === 'µV' ? 'EEG' : unit === 'a.u.' ? 'Simulated signal' : 'ICA activation',
+    label: unit === 'µV' ? 'EEG' : unit === 'a.u.' ? '시뮬레이션 신호' : 'ICA 활성도',
     source: createArrayTraceSource({
       sourceId: 'simulation', title: ariaLabel, timesS: x, series, unit,
       channels: Object.keys(series).map((id) => ({
@@ -48,11 +48,12 @@ export function StackedEegBrowser({ x, series: seriesProp, ariaLabel, unit = 'µ
     defaultViewport={{ startTimeS: x[0] ?? 0, durationS: 10, visibleChannelCount: 8 }} readOnly />
 }
 
-export function StackedEegComparison({ x, series: seriesProp, channelNames: channelNamesProp, ariaLabel, beforeLabel = 'Before · generated EEG', afterLabel = 'After · cleaned EEG' }: StackedEegComparisonProps) {
+export function StackedEegComparison({ x, series: seriesProp, channelNames: channelNamesProp, ariaLabel, beforeLabel = '처리 전 · 생성한 EEG', afterLabel = '처리 후 · 정리한 EEG' }: StackedEegComparisonProps) {
   const series = useShallowStable(seriesProp)
   const channelNames = useShallowStable(channelNamesProp)
   const layers = useMemo(() => [
-    { id: 'before', label: beforeLabel, prefix: 'Before', color: '#c7653c', lineStyle: 'dashed' as const },
+    // Colour rule shared by every lab: faint grey = before, teal = after, rust = removed.
+    { id: 'before', label: beforeLabel, prefix: 'Before', color: '#9a9d97', lineStyle: 'dashed' as const },
     { id: 'after', label: afterLabel, prefix: 'After', color: '#087f83', lineStyle: 'solid' as const },
   ].map(({ prefix, ...layer }) => ({
     ...layer,

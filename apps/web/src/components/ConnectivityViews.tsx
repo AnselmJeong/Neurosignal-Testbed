@@ -66,7 +66,7 @@ export function ConnectivityHeatmap({ matrix, threshold }: MatrixProps) {
           ))}
         </div>
       ))}
-      <div className="heatmap-scale" aria-label="Fixed connectivity color scale from blue at 0 to red at 1"><i style={{ background: CONNECTIVITY_GRADIENT }} /><span>0 · low</span><span>0.5</span><span>1 · high</span></div>
+      <div className="heatmap-scale" aria-label="Fixed connectivity color scale from blue at 0 to red at 1"><i style={{ background: CONNECTIVITY_GRADIENT }} /><span>0 · 낮음</span><span>0.5</span><span>1 · 높음</span></div>
     </div>
   )
 }
@@ -135,13 +135,13 @@ export function CircleNetwork({ matrix, edges, threshold, truthVisible, recipe }
         <text x="150" y="282" textAnchor="middle" className="scalp-orientation">Back</text>
         <text x="22" y="153" textAnchor="middle" className="scalp-orientation">L</text>
         <text x="278" y="153" textAnchor="middle" className="scalp-orientation">R</text>
-        <text x="150" y="303" textAnchor="middle" className="scalp-orientation">Schematic top view</text>
+        <text x="150" y="303" textAnchor="middle" className="scalp-orientation">도식적 위에서 본 모습</text>
       </g>}
       <NetworkEdges edges={visibleEdges} names={matrix.node_names} points={points} truthVisible={truthVisible} />
       <NetworkNodes names={matrix.node_names} points={points} compact />
       {sourceLayout && recipe && <g>
-        <text x="150" y="99" textAnchor="middle" className="source-link-detail">{recipe.coupling_strength > 0 ? `Configured offset ${recipe.phase_lag_deg}°` : 'Offset inactive'}</text>
-        <text x="150" y="183" textAnchor="middle" className="source-link-detail">Configured spread {recipe.volume_conduction.toFixed(2)}</text>
+        <text x="150" y="99" textAnchor="middle" className="source-link-detail">{recipe.coupling_strength > 0 ? `설정한 위상차 ${recipe.phase_lag_deg}°` : '위상차 비활성'}</text>
+        <text x="150" y="183" textAnchor="middle" className="source-link-detail">설정한 장 퍼짐 {recipe.volume_conduction.toFixed(2)}</text>
       </g>}
       <text className="circle-center-label" x="150" y="148" textAnchor="middle">{matrix.metric.toUpperCase()}</text>
       <text className="circle-center-sub" x="150" y="164" textAnchor="middle">{matrix.band_hz[0]}–{matrix.band_hz[1]} Hz</text>
@@ -210,7 +210,7 @@ export function SurrogateDistribution({ values, threshold, estimate }: { values:
       <div className="surrogate-bars">
         {counts.map((count, index) => <i key={index} style={{ height: `${(count / peak) * 100}%` }} />)}
         <span className="surrogate-threshold" style={{ left: `${(threshold / maximum) * 100}%` }}><b>95%</b></span>
-        <span className="surrogate-estimate" style={{ left: `${(estimate / maximum) * 100}%` }}><b>edge</b></span>
+        <span className="surrogate-estimate" style={{ left: `${(estimate / maximum) * 100}%` }}><b>관측</b></span>
       </div>
       <div className="surrogate-axis"><span>0</span><span>{maximum.toFixed(2)}</span></div>
     </div>
@@ -232,6 +232,6 @@ export function ConnectivityDifference({ a, b }: { a: ConnectivityMatrix; b: Con
         return <span key={j} className="heatmap-cell" title={`${a.node_names[i]} – ${a.node_names[j]}: B − A = ${delta.toFixed(3)}`} style={{ background: i === j ? '#e7e9e3' : color, color: t > 0.6 ? '#f7f7f3' : '#26302d' }}>{i === j ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(2)}`}</span>
       })}
     </div>)}
-    <div className="conn-difference-scale"><span>−1 · decreased</span><span>0 · unchanged</span><span>+1 · increased</span></div>
+    <div className="conn-difference-scale"><span>−1 · 감소</span><span>0 · 변화 없음</span><span>+1 · 증가</span></div>
   </div>
 }

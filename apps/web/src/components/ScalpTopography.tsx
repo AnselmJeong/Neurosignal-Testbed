@@ -18,7 +18,7 @@ function color(value: number): string {
 
 export function ScalpTopography({ values, label }: { values: number[]; label: string }) {
   return (
-    <svg className="scalp-map" viewBox="0 0 100 108" role="img" aria-label={`${label} scalp topography`}>
+    <svg className="scalp-map" viewBox="0 0 100 108" role="img" aria-label={`${label} 두피 지형도`}>
       <path d="M50 8 C26 8 13 27 13 54 C13 82 28 99 50 99 C72 99 87 82 87 54 C87 27 74 8 50 8Z" fill="#f4f4ef" stroke="#adb1aa" />
       <path d="M43 10 L50 2 L57 10" fill="none" stroke="#adb1aa" />
       <path d="M13 42 C5 43 5 61 13 64 M87 42 C95 43 95 61 87 64" fill="none" stroke="#adb1aa" />

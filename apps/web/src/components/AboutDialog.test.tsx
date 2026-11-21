@@ -13,17 +13,17 @@ describe('AboutExperience', () => {
     render(<AboutExperience />)
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'About NeuroSignal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'NeuroSignal 정보' }))
 
-    expect(screen.getByRole('dialog', { name: 'Explore signals. Question every result.' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: '신호를 탐구하고, 모든 결과를 의심하라.' })).toBeVisible()
     expect(screen.getByText(APP_VERSION)).toHaveTextContent('0.2.5')
     expect(screen.getByText('Anselm Jeong')).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Close About dialog' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: '정보 창 닫기' })).toHaveFocus()
   })
 
   it('closes the About dialog when Escape is pressed', () => {
     render(<AboutExperience />)
-    fireEvent.click(screen.getByRole('button', { name: 'About NeuroSignal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'NeuroSignal 정보' }))
 
     fireEvent.keyDown(document, { key: 'Escape' })
 

@@ -24,23 +24,23 @@ def validate_recipe(
 ) -> list[WarningMessage]:
     nyquist = simulation.sampling_rate_hz / 2
     warnings: list[WarningMessage] = []
-    for label, value in (
-        ("High-pass", preprocessing.highpass_hz),
-        ("Low-pass", preprocessing.lowpass_hz),
-        ("Notch", preprocessing.notch_hz),
+    for label, korean, value in (
+        ("High-pass", "고역 통과(High-pass)", preprocessing.highpass_hz),
+        ("Low-pass", "저역 통과(Low-pass)", preprocessing.lowpass_hz),
+        ("Notch", "노치(Notch)", preprocessing.notch_hz),
     ):
         if value is not None and value >= nyquist:
             warnings.append(
                 WarningMessage(
                     code=f"{label.lower().replace('-', '_')}_above_nyquist",
                     severity="error" if label != "Notch" else "warning",
-                    title=f"{label} is at or above Nyquist",
+                    title=f"{korean} 주파수가 Nyquist 이상입니다",
                     explanation=(
-                        f"{value:g} Hz cannot be represented independently at "
-                        f"{simulation.sampling_rate_hz} Hz sampling."
+                        f"표본화율 {simulation.sampling_rate_hz} Hz에서는 {value:g} Hz를 "
+                        "따로 표현할 수 없어 이 필터 단계는 적용되지 않습니다."
                     ),
                     suggestion=(
-                        f"Use a frequency below {nyquist:g} Hz or increase the sampling rate."
+                        f"{nyquist:g} Hz보다 낮은 주파수를 쓰거나 표본화율을 높이세요."
                     ),
                 )
             )
@@ -53,12 +53,12 @@ def validate_recipe(
             WarningMessage(
                 code="redundant_notch",
                 severity="info",
-                title="The 60 Hz notch is redundant here",
+                title="여기서는 60 Hz 노치가 중복입니다",
                 explanation=(
-                    "The low-pass transition already suppresses 60 Hz, so the notch "
-                    "is not an independent cleanup step."
+                    "저역 통과(Low-pass)가 이미 60 Hz를 크게 줄이므로, 노치는 "
+                    "독립적인 정리 단계가 아닙니다."
                 ),
-                suggestion="Keep it visible for comparison, or disable it to simplify the recipe.",
+                suggestion="비교용으로 남겨 두거나, 설정을 단순하게 하려면 끄세요.",
             )
         )
     aliased = [source for source in simulation.sources if source.frequency_hz > nyquist]
@@ -68,12 +68,12 @@ def validate_recipe(
             WarningMessage(
                 code="source_aliasing",
                 severity="warning",
-                title="A planted source will alias",
+                title="심어 둔 원천이 접힙니다(aliasing)",
                 explanation=(
-                    f"{names} exceeds the {nyquist:g} Hz Nyquist frequency and will "
-                    "fold into the observed spectrum."
+                    f"{names}이(가) Nyquist 주파수 {nyquist:g} Hz를 넘어서 "
+                    "관측 스펙트럼의 더 낮은 주파수로 접혀 나타납니다."
                 ),
-                suggestion="Predict the folded frequency before revealing the truth.",
+                suggestion="정답을 공개하기 전에 접힌 주파수를 예측해 보세요.",
             )
         )
     return warnings

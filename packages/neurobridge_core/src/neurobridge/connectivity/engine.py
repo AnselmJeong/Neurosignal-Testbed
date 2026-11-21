@@ -317,13 +317,13 @@ def _warnings(recipe: ConnectivityRecipe, fit_r_squared: float) -> list[WarningM
         WarningMessage(
             code="connectivity_not_causality",
             severity="warning",
-            title="An edge is not a causal connection",
+            title="연결선은 인과적 연결이 아닙니다",
             explanation=(
-                "This undirected estimator summarizes statistical dependence in this band; "
-                "it is not a synapse, structural pathway, or proof of direction."
+                "방향 없는 이 추정값은 이 대역의 통계적 의존성을 요약한 것입니다. "
+                "시냅스나 구조적 경로가 아니며 방향의 증거도 아닙니다."
             ),
             suggestion=(
-                "Compare the estimate with the configured source graph and the saved A/B settings."
+                "설정한 원천 그래프와 저장한 A/B 설정에 비추어 추정값을 비교하세요."
             ),
         )
     ]
@@ -332,13 +332,13 @@ def _warnings(recipe: ConnectivityRecipe, fit_r_squared: float) -> list[WarningM
             WarningMessage(
                 code="sensor_volume_conduction",
                 severity="warning",
-                title="Sensor edges inherit shared field spread",
+                title="센서 연결선은 공유된 장 퍼짐을 물려받습니다",
                 explanation=(
-                    "Each scalp channel contains mixtures of multiple latent sources. Zero-lag "
-                    "sensor dependence can therefore appear without a new latent edge."
+                    "두피 채널마다 여러 잠재 원천이 섞여 있습니다. 그래서 원천 사이에 새 연결이 "
+                    "없어도 센서 사이에 0° 의존성이 나타날 수 있습니다(볼륨 전도)."
                 ),
                 suggestion=(
-                    "Switch to latent space or a lag-sensitive metric for this controlled lesson."
+                    "이 통제된 실습에서는 원천 공간이나 위상 지연에 민감한 지표로 바꿔 비교하세요."
                 ),
             )
         )
@@ -347,12 +347,11 @@ def _warnings(recipe: ConnectivityRecipe, fit_r_squared: float) -> list[WarningM
             WarningMessage(
                 code="zero_lag_sensitive_metric",
                 severity="info",
-                title="This metric retains zero-lag dependence",
+                title="이 지표는 0° 의존성을 그대로 셉니다",
                 explanation=(
-                    "Pearson correlation, coherence, and PLV can be inflated by instantaneous "
-                    "sensor mixing."
+                    "Pearson 상관, 코히어런스, PLV는 센서의 순간 혼합만으로도 부풀려질 수 있습니다."
                 ),
-                suggestion="Compare with imaginary coherence, PLI, or wPLI.",
+                suggestion="허수 코히어런스, PLI, wPLI와 비교하세요.",
             )
         )
     if fit_r_squared < 0.9:
@@ -360,14 +359,13 @@ def _warnings(recipe: ConnectivityRecipe, fit_r_squared: float) -> list[WarningM
             WarningMessage(
                 code="specparam_fit_quality",
                 severity="info",
-                title="Inspect the spectral fit before interpreting it",
+                title="해석하기 전에 스펙트럼 적합을 확인하세요",
                 explanation=(
-                    "The periodic/aperiodic fit explains "
-                    f"{fit_r_squared * 100:.1f}% of log-power variance."
+                    "주기/비주기(periodic/aperiodic) 적합이 로그 파워 분산의 "
+                    f"{fit_r_squared * 100:.1f}%를 설명합니다."
                 ),
                 suggestion=(
-                    "Increase epoch duration or inspect residual structure before "
-                    "comparing exponents."
+                    "지수(exponent)를 비교하기 전에 epoch 길이를 늘리거나 잔차 구조를 살펴보세요."
                 ),
             )
         )
