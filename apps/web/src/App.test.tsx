@@ -68,4 +68,26 @@ describe('Lab 01 prediction loop', () => {
     expect(within(tryThis).getByText('1 / 7 완료')).toBeInTheDocument()
     expect(JSON.parse(window.localStorage.getItem('neurosignal-lab01-completed-experiments') ?? '[]')).toContain('alias-100')
   })
+
+  it('keeps sliders silent before reveal, then previews instantly and confirms with the server', async () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('radio', { name: /2 Hz와 10 Hz는 남고/ }))
+    fireEvent.click(screen.getByRole('button', { name: /EEG 생성\(Generate\)/ }))
+    await waitFor(() => expect(api.runRecipe).toHaveBeenCalledTimes(1))
+    const reveal = await screen.findByRole('button', { name: /예측과 대조하기/ })
+    await waitFor(() => expect(reveal).toBeEnabled())
+    expect(screen.getByText(/예측을 공개하고 나면 슬라이더가 즉시 반응합니다/)).toBeInTheDocument()
+
+    fireEvent.click(reveal)
+    fireEvent.change(screen.getByRole('slider', { name: 'Sampling rate' }), { target: { value: '100' } })
+    expect(await screen.findByText('미리보기 · 브라우저 계산')).toBeInTheDocument()
+    expect(screen.getByText(/60 Hz →/).textContent).toContain('40 Hz')
+    expect(screen.getByText('심어 둔 원천이 접힙니다(aliasing)')).toBeInTheDocument()
+
+    await waitFor(() => expect(api.runRecipe).toHaveBeenCalledTimes(2), { timeout: 3000 })
+    expect(api.runRecipe.mock.calls[1]![0].simulation.sampling_rate_hz).toBe(100)
+    await waitFor(() => expect(screen.queryByText('미리보기 · 브라우저 계산')).not.toBeInTheDocument())
+    // The graded feedback from before exploring stays as it was.
+    expect(screen.getByText('예측이 맞았습니다')).toBeInTheDocument()
+  })
 })
