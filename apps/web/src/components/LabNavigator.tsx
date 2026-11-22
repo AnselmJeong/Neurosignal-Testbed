@@ -7,6 +7,7 @@ import {
   Clock3,
   Compass,
   Route,
+  Gamepad2,
   CircleHelp,
   FlaskConical,
   HardDrive,
@@ -17,7 +18,7 @@ import {
   Workflow,
 } from 'lucide-react'
 
-export type LabId = 'start' | 'journey' | 'filter' | 'ica' | 'phase' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
+export type LabId = 'start' | 'journey' | 'filter' | 'ica' | 'phase' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow' | 'practice'
 export type LabKey = Exclude<LabId, 'start'>
 
 export interface LabStep {
@@ -66,6 +67,10 @@ export const LABS: Record<LabKey, { number: string; label: string; english: stri
   flow: {
     number: '08', label: '정보 흐름', english: 'Information Flow', title: '연결성은 정보 흐름인가?',
     objective: '정답 방향을 아는 JR 소스와 그 EEG에서 GC·TE·DCM식 모델·activity flow·PID가 보여주는 것과 놓치는 것을 비교합니다.', minutes: '20분', icon: Workflow,
+  },
+  practice: {
+    number: '+', label: '연습장', english: 'Practice', title: '판독을 문제로 반복하기',
+    objective: '아티팩트 맞히기, 진짜 봉우리 가리기, 복원 샌드박스, 오늘의 문제로 Lab에서 배운 판독을 다시 연습합니다.', minutes: '자유', icon: Gamepad2,
   },
 }
 

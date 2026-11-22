@@ -35,7 +35,7 @@ describe('LabNavigator labs', () => {
     const onLabChange = vi.fn()
     render(<LabNavigator activeLab="filter" onLabChange={onLabChange} steps={steps} step={0} />)
 
-    const labs = within(screen.getByRole('region', { name: 'Lab 목록' })).getAllByRole('button').filter((button) => !button.classList.contains('lab-start-button') && button.title !== 'Lab 준비 · Phase primer' && button.title !== 'Lab 00 · Signal journey')
+    const labs = within(screen.getByRole('region', { name: 'Lab 목록' })).getAllByRole('button').filter((button) => !button.classList.contains('lab-start-button') && button.title !== 'Lab 준비 · Phase primer' && button.title !== 'Lab 00 · Signal journey' && button.title !== 'Lab + · Practice')
     expect(labs[6]).toHaveTextContent('07JR 벤치마크')
     labs[6]!.click()
     expect(onLabChange).toHaveBeenCalledWith('benchmark')
@@ -45,7 +45,7 @@ describe('LabNavigator labs', () => {
     const onLabChange = vi.fn()
     render(<LabNavigator activeLab="filter" onLabChange={onLabChange} steps={steps} step={0} />)
 
-    const labs = within(screen.getByRole('region', { name: 'Lab 목록' })).getAllByRole('button').filter((button) => !button.classList.contains('lab-start-button') && button.title !== 'Lab 준비 · Phase primer' && button.title !== 'Lab 00 · Signal journey')
+    const labs = within(screen.getByRole('region', { name: 'Lab 목록' })).getAllByRole('button').filter((button) => !button.classList.contains('lab-start-button') && button.title !== 'Lab 준비 · Phase primer' && button.title !== 'Lab 00 · Signal journey' && button.title !== 'Lab + · Practice')
     expect(labs).toHaveLength(8)
     expect(labs[7]).toHaveTextContent('08정보 흐름')
     labs[7]!.click()
