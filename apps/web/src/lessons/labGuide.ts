@@ -36,6 +36,14 @@ export interface LabLimits {
 
 /** "What this lab cannot tell you": the caveats that used to be scattered in small print. */
 export const LAB_LIMITS: Record<Exclude<LabId, 'start'>, LabLimits> = {
+  practice: {
+    kind: 'simulated',
+    limits: [
+      '아티팩트 문제는 모양이 규칙적인 합성 파형입니다. 실제 기록에서는 여러 아티팩트가 겹치고 뇌파와 섞여 더 어렵습니다.',
+      '연결과 원천 문제는 1차원 장난감 모형입니다. 실제 머리에서는 번짐과 누설이 방향마다 다릅니다.',
+      '샌드박스의 필터는 2차 Butterworth를 앞뒤로 건 것입니다. Lab 01의 실제 필터 설계(차수, 전이 대역)와는 다릅니다.',
+    ],
+  },
   journey: {
     kind: 'simulated',
     limits: [
