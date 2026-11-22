@@ -1,4 +1,5 @@
 import { LAB_LIMITS } from '../lessons/labGuide'
+import { LIBRARY } from '../lessons/library'
 import {
   Activity,
   Brain,
@@ -111,6 +112,21 @@ export function LabNavigator({ activeLab, onLabChange, steps, step }: {
           <details className="lab-limits">
             <summary>이 Lab이 말해 주지 못하는 것</summary>
             <ul>{limits.limits.map((item) => <li key={item}>{item}</li>)}</ul>
+          </details>
+          <details className="lab-limits lab-reading">
+            <summary>더 읽기(Further reading)</summary>
+            <ul>
+              {LIBRARY[labKey].map((item) => (
+                <li key={item.cite}>
+                  <span className={`reading-level level-${item.level}`}>{item.level}</span>
+                  <b>{item.title}</b>
+                  <small>{item.cite}</small>
+                  <span>{item.why}</span>
+                  {item.alsoFor && <small className="reading-also">함께: {item.alsoFor.map((lab) => `Lab ${LABS[lab].number} ${LABS[lab].label}`).join(', ')}</small>}
+                </li>
+              ))}
+            </ul>
+            <p className="reading-source">모두 설명서 부록 C(참고 문헌)에 있는 문헌입니다.</p>
           </details>
         </div>
         <div className="lesson-progress-heading">

@@ -8,6 +8,8 @@ import { SOURCE_BASELINE_PREDICTION, SOURCE_EXPERIMENTS, summarizeSourceResult }
 import { useGradedLesson } from '../lessons/useGradedLesson'
 import { LabNavigator, type LabId } from './LabNavigator'
 import { StackedEegBrowser } from './StackedEegBrowser'
+import { CodeExport } from './CodeExport'
+import { sourceScript } from '../lessons/mneExport'
 import { CandidateForwardMap, CandidateTraces, coordinates, SourcePowerView, TruthDiagnostics } from './SourcePowerViews'
 import './source-localization.css'
 import { MathSteps } from './MathSteps'
@@ -154,6 +156,7 @@ export function SourceModelWorkbench({ activeLab, onLabChange }: { activeLab: La
         </>}</section>
         <section className="source-learning-experiments"><p>정답을 공개하기 전에 설정을 정하세요. 알려진 점수를 올리려고 설정을 고치는 것은 탐색적 조정이지 독립적 검증이 아닙니다.</p></section>
         <MathSteps lab="source" />
+        <CodeExport lab="Lab 04 · 원천" filename="lab04_source.py" code={sourceScript(recipe)} />
         <div className="nonclinical"><AlertTriangle size={15} /><span>구형·고정 방향의 교육용 모형입니다. 시뮬레이션과 역해가 같은 기하를 쓰므로 실제 머리 모형 불일치는 시험하지 않습니다. 격자점을 늘려도 센서 정보는 늘지 않습니다.</span></div>
         {result && <section className="source-methods"><span className="eyebrow">기록된 방법</span><p>{result.inverse_method}</p><p>Hann 창 periodogram · 대역 적분 파워(nAm²) · 국소 극댓값 · 상대 임계값 · 거리 억제</p><small>Seed {result.provenance.seed} · recipe {result.provenance.recipe_hash}</small></section>}
       </aside>
