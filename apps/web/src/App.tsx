@@ -1,3 +1,4 @@
+import { SignalJourney } from './components/SignalJourney'
 import { StackedEegComparison } from './components/StackedEegBrowser'
 import {
   Activity,
@@ -310,7 +311,7 @@ function App() {
         </div>
       </header>
 
-      {activeLab === 'start' ? <StartScreen onLabChange={setActiveLab} /> : activeLab === 'phase' ? <PhasePrimer activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'flow' ? <Suspense fallback={<main className="workspace"><p className="empty-stage" role="status">Information Flow 실습을 불러오는 중…</p></main>}><FlowWorkbench activeLab={activeLab} onLabChange={setActiveLab} /></Suspense> : <>
+      {activeLab === 'start' ? <StartScreen onLabChange={setActiveLab} /> : activeLab === 'phase' ? <PhasePrimer activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'journey' ? <SignalJourney activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'ica' ? <IcaWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'connectivity' ? <ConnectivityWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'source' ? <SourceModelWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'real' ? <RealDataWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'qeeg' ? <QeegWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'benchmark' ? <BenchmarkWorkbench activeLab={activeLab} onLabChange={setActiveLab} /> : activeLab === 'flow' ? <Suspense fallback={<main className="workspace"><p className="empty-stage" role="status">Information Flow 실습을 불러오는 중…</p></main>}><FlowWorkbench activeLab={activeLab} onLabChange={setActiveLab} /></Suspense> : <>
         <main className="workspace">
         <LabNavigator activeLab={activeLab} onLabChange={setActiveLab} steps={STEPS} step={step} />
 

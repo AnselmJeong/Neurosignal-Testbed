@@ -139,7 +139,7 @@ function Scene({ index, title, lines, control, readout, children }: { index: num
   )
 }
 
-function PrimerRange({ label, ariaLabel, value, min, max, step, unit, onChange }: { label: string; ariaLabel: string; value: number; min: number; max: number; step: number; unit: string; onChange: (value: number) => void }) {
+export function PrimerRange({ label, ariaLabel, value, min, max, step, unit, onChange }: { label: string; ariaLabel: string; value: number; min: number; max: number; step: number; unit: string; onChange: (value: number) => void }) {
   return (
     <label className="range-control">
       <span><span className="control-label">{label}</span><output>{value}{unit}</output></span>

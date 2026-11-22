@@ -6,6 +6,7 @@ import {
   Check,
   Clock3,
   Compass,
+  Route,
   CircleHelp,
   FlaskConical,
   HardDrive,
@@ -16,7 +17,7 @@ import {
   Workflow,
 } from 'lucide-react'
 
-export type LabId = 'start' | 'filter' | 'ica' | 'phase' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
+export type LabId = 'start' | 'journey' | 'filter' | 'ica' | 'phase' | 'connectivity' | 'source' | 'real' | 'qeeg' | 'benchmark' | 'flow'
 export type LabKey = Exclude<LabId, 'start'>
 
 export interface LabStep {
@@ -26,6 +27,10 @@ export interface LabStep {
 }
 
 export const LABS: Record<LabKey, { number: string; label: string; english: string; title: string; objective: string; minutes: string; icon: LucideIcon }> = {
+  journey: {
+    number: '00', label: '신호 여행', english: 'Signal journey', title: '원천에서 전극, 그리고 추정까지',
+    objective: '일곱 장면에서 조작을 하나씩 움직이며, 모든 Lab이 놓인 길(원천 → 전극 → 추정)을 먼저 훑어봅니다.', minutes: '5–8분', icon: Route,
+  },
   filter: {
     number: '01', label: '표본화', english: 'Sampling', title: '센서를 거치면 무엇이 남는가?',
     objective: '2, 10, 60 Hz를 심은 신호에서 표본화와 필터가 무엇을 바꾸는지 예측하고 확인합니다.', minutes: '8분', icon: Activity,
