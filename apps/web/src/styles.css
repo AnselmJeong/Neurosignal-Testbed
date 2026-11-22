@@ -1039,3 +1039,24 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .link-button { border: 0; background: none; padding: 0; color: var(--accent-dark); text-decoration: underline; cursor: pointer; font: inherit; }
 @media (max-width: 1100px) { .practice-sandbox { grid-template-columns: 1fr; } }
 .practice-question .practice-plot { max-width: 760px; }
+.lab-reading summary { color: #b9d8d4; }
+.lab-reading ul { list-style: none; padding-left: 0; }
+.lab-reading li { display: grid; gap: 2px; }
+.lab-reading li + li { margin-top: 9px; }
+.lab-reading b { color: #eef1ec; font-weight: 600; font-size: 11px; line-height: 1.4; }
+.lab-reading small { color: #9ea7a1; font-size: 10px; }
+.reading-level { justify-self: start; padding: 0 5px; border-radius: 3px; font-size: 9.5px; font-weight: 700; background: rgba(255,255,255,.1); color: #dfe5df; }
+.reading-level.level-입문 { background: rgba(8,127,131,.45); }
+.reading-level.level-심화 { background: rgba(199,101,60,.45); }
+.reading-source { margin: 8px 0 0; color: #8d968f; font-size: 10px; }
+
+/* P2-3 MNE code export. */
+.code-export { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+.code-export summary { display: flex; align-items: center; gap: 7px; padding: 9px 12px; cursor: pointer; font-size: 13px; font-weight: 650; }
+.code-export summary small { margin-left: auto; color: #6b726c; font-weight: 400; font-size: 11px; }
+.code-export-body { display: grid; gap: 8px; padding: 0 12px 12px; }
+.code-export-body p { margin: 0; font-size: 12px; color: #4e5650; line-height: 1.5; }
+.code-export pre { margin: 0; max-width: 100%; min-width: 0; max-height: 340px; overflow: auto; padding: 10px 12px; background: #f6f6f1; border: 1px solid #e3e5de; border-radius: 4px; font: 11.5px/1.5 var(--mono); white-space: pre; }
+.code-export-actions { display: flex; gap: 8px; }
+.code-export-actions .quiet-button { display: inline-flex; align-items: center; gap: 6px; width: auto; }
+.code-export summary { flex-wrap: wrap; } .code-export-actions { flex-wrap: wrap; }

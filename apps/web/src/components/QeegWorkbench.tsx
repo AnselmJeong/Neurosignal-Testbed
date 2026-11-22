@@ -5,6 +5,8 @@ import { LabNavigator, type LabId } from './LabNavigator'
 import { ImportedQeegWorkbench } from './ImportedQeegWorkbench'
 import { LineChart } from './Charts'
 import { StackedEegBrowser } from './StackedEegBrowser'
+import { CodeExport } from './CodeExport'
+import { qeegScript } from '../lessons/mneExport'
 import { ConnectivityHeatmap } from './ConnectivityViews'
 import { QeegTopomap } from './QeegTopomap'
 import './qeeg-lab.css'
@@ -104,6 +106,7 @@ export function QeegWorkbench(props: { activeLab: LabId; onLabChange: (lab: LabI
         <p className="ql-fixed" role="status">{pending === 'eeg' ? '다채널 기록을 만드는 중…' : pending === 'maps' ? '스펙트럼, 지표, 합성 집단을 계산하는 중…' : dirty ? '설정이 바뀌었습니다. 지도를 만들기 전에 EEG를 다시 생성하세요.' : result ? '지도 준비 완료. 파워, 지표, 합성 규준을 살펴보세요.' : simulation ? 'EEG 준비 완료. 파형을 본 뒤 QEEG 지도를 만드세요.' : 'EEG 생성부터 시작한 뒤 QEEG 지도를 만드세요.'}</p>
         <p className="ql-fixed">128 Hz · 32 s · 1/f 배경<br />아티팩트 없는 교육용 예시라 ICA가 필요 없습니다.</p>
         <button className="quiet-button" onClick={() => setImported(true)}>고급: 가져온 EEG</button>
+        <CodeExport lab="Lab 06 · QEEG" filename="lab06_qeeg.py" code={qeegScript(recipe)} />
       </aside>
       <section ref={canvasRef} className="canvas-panel ql-canvas">
         <header className="ql-toolbar"><div><span className="eyebrow"><span className="data-kind simulated">시뮬레이션 · 정답을 앎</span> 합성 EEG · 교육용</span><h2>{view === 'Atlas' ? '주파수 지도(Atlas)' : view === 'Norms' ? '만드는 과정을 공개한 참조 집단' : view === 'Geometry' ? '쌍극자에서 전극까지' : view === 'Metrics' ? '계산의 안쪽' : '다채널 기록'}</h2></div><button className="quiet-button" disabled={!result || busy} onClick={download}><Download size={14} /> JSON</button></header>

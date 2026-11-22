@@ -1,4 +1,6 @@
+import { CodeExport } from './components/CodeExport'
 import { PracticeGames } from './components/PracticeGames'
+import { filterScript } from './lessons/mneExport'
 import { SignalJourney } from './components/SignalJourney'
 import { StackedEegComparison } from './components/StackedEegBrowser'
 import {
@@ -622,6 +624,7 @@ function App() {
           </section>
 
           <MathSteps lab="filter" />
+          <CodeExport lab="Lab 01 · 표본화" filename="lab01_sampling.py" code={filterScript(recipe)} />
 
           <div className="nonclinical"><AlertTriangle size={15} /><span>교육·연구용입니다.<br />임상 진단에 쓰지 마세요.</span></div>
         </aside>

@@ -29,6 +29,8 @@ import {
 import { LineChart } from './Charts'
 import { ControlHint } from './ControlHint'
 import { StackedEegBrowser, StackedEegComparison } from './StackedEegBrowser'
+import { CodeExport } from './CodeExport'
+import { icaScript } from '../lessons/mneExport'
 import { LabNavigator, type LabId } from './LabNavigator'
 import { ScalpTopography } from './ScalpTopography'
 import { LookHere, PredictionChoices, PredictionFeedback, TryThisList } from './LessonPanels'
@@ -601,6 +603,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
             rotate: { label: '성분 시계열 보기', disabled: !fit || isBusy, onClick: () => setView('Component trace') },
             remove: { label: '처리 전 / 후 보기', disabled: !applied || isBusy, onClick: () => setView('Before / after') },
           }} />
+          <CodeExport lab="Lab 02 · ICA" filename="lab02_ica.py" code={icaScript(recipe)} />
           <div className="nonclinical"><AlertTriangle size={15} /><span>ICLabel은 참고용입니다. 교육·연구용입니다.</span></div>
         </aside>
       </main>
