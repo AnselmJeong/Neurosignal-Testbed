@@ -1,5 +1,6 @@
 import { LAB_LIMITS } from '../lessons/labGuide'
 import { LIBRARY } from '../lessons/library'
+import { SUGGESTED_QUESTIONS } from '../lessons/questions'
 import {
   Activity,
   Brain,
@@ -75,6 +76,12 @@ export const LABS: Record<LabKey, { number: string; label: string; english: stri
   },
 }
 
+/** "Lab 03 연결성", or just "연습장" for the practice area, which has no number. */
+export function labName(lab: LabKey): string {
+  const item = LABS[lab]
+  return item.number === '+' ? item.label : `Lab ${item.number} ${item.label}`
+}
+
 export function LabNavigator({ activeLab, onLabChange, steps, step }: {
   activeLab: LabId
   onLabChange: (lab: LabId) => void
@@ -113,6 +120,21 @@ export function LabNavigator({ activeLab, onLabChange, steps, step }: {
             <summary>이 Lab이 말해 주지 못하는 것</summary>
             <ul>{limits.limits.map((item) => <li key={item}>{item}</li>)}</ul>
           </details>
+          <details className="lab-limits lab-questions">
+            <summary>궁금한 점(Questions)</summary>
+            <ul>
+              {SUGGESTED_QUESTIONS[labKey].map((item) => (
+                <li key={item.question}>
+                  <details>
+                    <summary>{item.question}</summary>
+                    <p>{item.answer}</p>
+                    <small className="question-section">설명서 › {item.section}</small>
+                    {item.tryIn && item.tryIn !== labKey && <button type="button" className="question-try" onClick={() => onLabChange(item.tryIn!)}>{labName(item.tryIn)}에서 해 보기 →</button>}
+                  </details>
+                </li>
+              ))}
+            </ul>
+          </details>
           <details className="lab-limits lab-reading">
             <summary>더 읽기(Further reading)</summary>
             <ul>
@@ -122,7 +144,7 @@ export function LabNavigator({ activeLab, onLabChange, steps, step }: {
                   <b>{item.title}</b>
                   <small>{item.cite}</small>
                   <span>{item.why}</span>
-                  {item.alsoFor && <small className="reading-also">함께: {item.alsoFor.map((lab) => `Lab ${LABS[lab].number} ${LABS[lab].label}`).join(', ')}</small>}
+                  {item.alsoFor && <small className="reading-also">함께: {item.alsoFor.map(labName).join(', ')}</small>}
                 </li>
               ))}
             </ul>

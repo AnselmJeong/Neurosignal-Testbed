@@ -93,18 +93,22 @@ con = spectral_connectivity_epochs(epochs, method="${metric}", mode="${recipe.sp
 matrix = np.abs(con.get_data(output="dense")[:, :, 0])
 matrix = matrix + matrix.T
 ${recipe.metric === 'pearson' ? '# Lab의 Pearson 상관은 시계열 상관이라 스펙트럼 지표가 아닙니다. 여기서는 coherence로 바꿨습니다.\n' : ''}
-# 4) 비교 대상(대리자료): epoch 짝을 섞어 관계를 끊고 같은 값을 ${recipe.surrogate_count}번 계산합니다.
+# 4) 비교 대상(대리자료): 채널마다 epoch 순서를 따로 섞어 관계를 끊고 같은 값을 ${recipe.surrogate_count}번 계산합니다.
+#    Lab처럼 매번 "모든 쌍 가운데 최댓값"을 모아 95 백분위수를 경계로 씁니다(다중비교를 묶는 최댓값 방식).
 rng = np.random.default_rng(${recipe.seed})
 data = epochs.get_data()
-null = []
+upper = np.triu_indices(data.shape[1], 1)
+null_max = []
 for _ in range(${recipe.surrogate_count}):
     shuffled = np.stack([data[rng.permutation(len(data)), ch] for ch in range(data.shape[1])], axis=1)
     c = spectral_connectivity_epochs(shuffled, method="${metric}", mode="${recipe.spectral_mode}", sfreq=epochs.info["sfreq"],
                                      fmin=${py(recipe.band_low_hz)}, fmax=${py(recipe.band_high_hz)}, faverage=True, verbose=False)
     m = np.abs(c.get_data(output="dense")[:, :, 0])
-    null.append(m + m.T)
-threshold = np.percentile(null, 95, axis=0)
-print("우연의 95% 경계를 넘는 쌍:", np.argwhere(np.triu(matrix > threshold, 1)))
+    null_max.append((m + m.T)[upper].max())
+threshold = np.percentile(null_max, 95)
+print("우연의 95% 경계:", threshold)
+print("경계를 넘는 쌍:", [(epochs.ch_names[i], epochs.ch_names[j]) for i, j in zip(*upper) if matrix[i, j] > threshold])
+# 경계를 넘었다는 것은 "epoch마다 한결같은 관계가 있다"는 뜻일 뿐입니다. 번짐도 한결같으므로 경계를 넘습니다.
 `
 }
 

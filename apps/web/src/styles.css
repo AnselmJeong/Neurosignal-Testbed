@@ -1060,3 +1060,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .code-export-actions { display: flex; gap: 8px; }
 .code-export-actions .quiet-button { display: inline-flex; align-items: center; gap: 6px; width: auto; }
 .code-export summary { flex-wrap: wrap; } .code-export-actions { flex-wrap: wrap; }
+.lab-questions summary { color: #d9d3a8; }
+.lab-questions ul { list-style: none; padding-left: 0; }
+.lab-questions li details summary { color: #eef1ec; font-weight: 600; font-size: 11px; line-height: 1.45; }
+.lab-questions li details p { margin: 5px 0 4px; color: #c6ccc6; font-size: 11px; line-height: 1.55; }
+.question-section { display: block; color: #9ec9c4; font-size: 10px; line-height: 1.4; }
+.question-try { margin-top: 5px; padding: 3px 7px; border: 1px solid rgba(255,255,255,.25); border-radius: 4px; background: transparent; color: #e3ebe5; font-size: 10.5px; cursor: pointer; }
+.question-try:hover { border-color: #9ec9c4; }
