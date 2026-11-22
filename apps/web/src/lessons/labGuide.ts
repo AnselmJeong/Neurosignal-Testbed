@@ -19,6 +19,7 @@ export interface StartQuestion {
 
 /** The question a learner brings, not the technique name. Ordered like the recommended path. */
 export const START_QUESTIONS: StartQuestion[] = [
+  { question: '처음이다. 전체 흐름부터 보고 싶다', hint: '원천이 진동해 전극에 닿고, 우리가 거꾸로 짐작하기까지를 일곱 장면으로 훑어봅니다.', lab: 'journey' },
   { question: '표본화율을 낮추면 무엇을 잃는가?', hint: '60 Hz가 40 Hz로 접히는 것을 직접 만들어 봅니다.', lab: 'filter' },
   { question: '눈 깜박임을 어떻게 빼는가?', hint: '성분을 하나씩 판정해 지우고, 무엇이 함께 사라졌는지 확인합니다.', lab: 'ica' },
   { question: '위상, 코히어런스, PLV가 낯설다', hint: '시계바늘과 화살표로 연결성 지표의 공통 원리를 5분 안에 봅니다.', lab: 'phase' },
@@ -35,6 +36,14 @@ export interface LabLimits {
 
 /** "What this lab cannot tell you": the caveats that used to be scattered in small print. */
 export const LAB_LIMITS: Record<Exclude<LabId, 'start'>, LabLimits> = {
+  journey: {
+    kind: 'simulated',
+    limits: [
+      '원천과 전극을 한 줄에 늘어놓은 장난감 모형입니다. 실제 머리는 3차원이고, 전도율이 다른 층(뇌, 머리뼈, 두피)을 지납니다.',
+      '깜박임 장면은 깜박임 지형을 정확히 안다고 가정합니다. 실제로는 ICA가 그 지형을 자료에서 추정해야 합니다.',
+      '방향 장면의 교차상관은 "누가 먼저"만 말합니다. 인과와 간접 경로는 Lab 08에서 다룹니다.',
+    ],
+  },
   filter: {
     kind: 'simulated',
     limits: [
