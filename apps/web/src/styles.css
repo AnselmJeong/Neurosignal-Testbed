@@ -938,3 +938,28 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .math-step-action { margin-top: 6px; min-height: 28px; padding: 0 10px; border: 1px solid #8eb2ae; background: transparent; color: var(--accent-dark); font-size: .75rem; font-weight: 700; cursor: pointer; }
 .math-step-action:disabled { opacity: .45; cursor: default; }
 .math-steps-source { margin: 8px 12px 12px; color: #7e857f; font-size: .6875rem; line-height: 1.45; }
+
+/* P1-6 measurement lens: a strip under the EEG viewer, light card, before/after/removed colours. */
+.measure-host { min-width: 0; min-height: 0; align-self: stretch; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
+.measure-host > .eeg-tracer-browser { min-height: 0; }
+.measure-lens { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); grid-template-areas: "head head" "plot data"; gap: 6px 14px; padding: 8px 12px; border: 1px solid #d4d6cf; border-radius: 8px; background: #fff; font-size: 12px; color: #2b3433; }
+.measure-lens.collapsed { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 5px 10px; background: #fafaf7; border-style: dashed; }
+.measure-lens.collapsed small { margin-left: auto; }
+.measure-lens header { grid-area: head; display: flex; align-items: center; gap: 8px; }
+.measure-lens header b { font-size: 13px; }
+.measure-lens header span { color: #5c6663; font-variant-numeric: tabular-nums; }
+.measure-lens header small { margin-left: auto; }
+.measure-lens header button { border: 0; background: transparent; padding: 2px; cursor: pointer; color: #5c6663; }
+.measure-lens > svg.measure-plot { grid-area: plot; width: 100%; height: auto; border: 1px solid #e6e7e1; border-radius: 4px; touch-action: none; cursor: ew-resize; }
+.measure-lens .measure-scale line { stroke: #1f2a2a; stroke-width: 1.6; }
+.measure-lens .measure-scale text, .measure-lens .measure-axis { font-size: 9px; fill: #3c4644; }
+.measure-lens .measure-data { grid-area: data; display: grid; align-content: start; gap: 8px; }
+.measure-lens dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px 12px; margin: 0; }
+.measure-lens dl div { display: grid; gap: 1px; }
+.measure-lens dt { font-size: 11px; color: #69736f; }
+.measure-lens dd { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.measure-lens dd.before { color: #6f736c; }
+.measure-lens dd.after { color: #087f83; }
+.measure-lens dd.removed { color: #c7653c; }
+.measure-lens p { margin: 0; font-size: 11px; color: #5c6663; line-height: 1.45; }
+.measure-lens small { font-size: 11px; color: #5c6663; }
