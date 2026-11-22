@@ -438,7 +438,7 @@ export function IcaWorkbench({ activeLab, onLabChange }: { activeLab: LabId; onL
                       </div>
                       <div className="component-chart">
                         {view === 'Component trace' ? (
-                          <StackedEegBrowser key={component.index} x={component.time_s} series={{ [`IC ${component.index + 1}`]: component.trace }} unit="a.u." ariaLabel={`Time course for ICA component ${component.index + 1}`} />
+                          <StackedEegBrowser key={component.index} x={component.time_s} series={{ [`IC ${component.index + 1}`]: component.trace }} unit="a.u." lens={false} ariaLabel={`Time course for ICA component ${component.index + 1}`} />
                         ) : (
                           <LineChart x={component.frequency_hz} series={[{ label: `IC ${component.index + 1} PSD`, values: component.power, color: '#087f83' }]} xDomain={[0, 80]} xLabel="주파수(Hz)" yLabel="파워 (log a.u.)" ariaLabel={`Power spectrum for ICA component ${component.index + 1}`} logY />
                         )}
